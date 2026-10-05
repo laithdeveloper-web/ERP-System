@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>روابي فرح — نظام إدارة المخزون والعمليات</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Readex+Pro:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f2ec;--surface:#ffffff;--surface-2:#faf8f3;--ink:#14231f;--ink-2:#3d4c47;--muted:#7b8682;
+  --line:#e6e2d8;--line-2:#efece4;
+  --brand:#0f5c4d;--brand-2:#147a66;--brand-ink:#e8f3ef;--brand-soft:#e3efe9;
+  --gold:#b98a3e;--gold-soft:#f6eddc;
+  --ok:#1f8a5b;--ok-soft:#e1f3ea;--warn:#b7791f;--warn-soft:#fbf0dc;--bad:#c2410c;--bad-soft:#fde8dd;
+  --info:#2563a8;--info-soft:#e2ecf8;--gray-soft:#eeede9;
+  --side:#0d2a24;--side-2:#123830;--side-ink:#c9dbd4;
+  --r:14px;--r-sm:9px;
+  --sh:0 1px 2px rgba(20,35,31,.04),0 4px 14px -6px rgba(20,35,31,.08);
+  --sh-lg:0 24px 60px -20px rgba(13,42,36,.35);
+  --font:'IBM Plex Sans Arabic',system-ui,sans-serif;--display:'Readex Pro','IBM Plex Sans Arabic',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:inherit;text-decoration:none}
+svg{width:18px;height:18px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.hidden{display:none!important}
+
+/* ===== Login ===== */
+#login{min-height:100vh;display:grid;grid-template-columns:1.1fr 1fr}
+.login-art{background:radial-gradient(120% 80% at 80% 10%,#1d7a66 0,transparent 60%),radial-gradient(90% 70% at 10% 90%,#b98a3e55 0,transparent 60%),var(--side);color:#fff;padding:56px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
+.login-art::after{content:"";position:absolute;inset:0;background-image:linear-gradient(#ffffff0a 1px,transparent 1px),linear-gradient(90deg,#ffffff0a 1px,transparent 1px);background-size:44px 44px;mask:linear-gradient(180deg,#000,transparent)}
+.login-art h1{font-family:var(--display);font-size:44px;line-height:1.2;max-width:460px;position:relative;z-index:1}
+.login-art p{color:#c9dbd4;max-width:420px;margin-top:16px;position:relative;z-index:1}
+.login-stats{display:flex;gap:28px;position:relative;z-index:1}
+.login-stats b{display:block;font-family:var(--display);font-size:26px;color:#f1d9a8}
+.login-stats span{color:#9fbab1;font-size:13px}
+.login-form{display:flex;align-items:center;justify-content:center;padding:32px}
+.login-card{width:100%;max-width:400px}
+.login-card h2{font-family:var(--display);font-size:26px;margin-bottom:6px}
+.role-pick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0 18px}
+.role-pick label{border:1px solid var(--line);border-radius:var(--r-sm);padding:10px;text-align:center;cursor:pointer;font-size:13px;background:var(--surface);transition:.15s}
+.role-pick input{display:none}
+.role-pick input:checked+span{color:var(--brand);font-weight:600}
+.role-pick label:has(input:checked){border-color:var(--brand);background:var(--brand-soft)}
+
+/* ===== Shell ===== */
+#app{display:grid;grid-template-columns:268px 1fr;min-height:100vh}
+.sidebar{background:var(--side);color:var(--side-ink);position:sticky;top:0;height:100vh;display:flex;flex-direction:column;z-index:40}
+.brand{display:flex;align-items:center;gap:12px;padding:22px 20px 18px}
+.logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#1d8a72,#0f5c4d);display:grid;place-items:center;color:#f1d9a8;font-family:var(--display);font-weight:700;font-size:18px;box-shadow:inset 0 0 0 1px #ffffff22}
+.brand b{display:block;color:#fff;font-family:var(--display);font-size:16px}
+.brand small{color:#86a59b;font-size:11.5px}
+.nav{flex:1;overflow-y:auto;padding:6px 12px 16px}
+.nav::-webkit-scrollbar{width:4px}.nav::-webkit-scrollbar-thumb{background:#ffffff22;border-radius:4px}
+.nav-group{font-size:11px;color:#6f9187;padding:16px 10px 6px;letter-spacing:.3px}
+.nav a{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:10px;color:var(--side-ink);font-size:13.5px;transition:.15s;cursor:pointer;position:relative}
+.nav a:hover{background:#ffffff0d;color:#fff}
+.nav a.active{background:var(--side-2);color:#fff;box-shadow:inset 0 0 0 1px #ffffff12}
+.nav a.active::before{content:"";position:absolute;right:-12px;top:8px;bottom:8px;width:3px;border-radius:3px;background:#e2b867}
+.nav a .count{margin-inline-start:auto;background:#e2b867;color:#2a1f08;font-size:11px;font-weight:600;border-radius:20px;padding:0 7px}
+.side-foot{padding:14px;border-top:1px solid #ffffff10}
+.role-chip{display:flex;align-items:center;gap:10px;background:#ffffff08;border-radius:12px;padding:10px}
+.role-chip select{background:transparent;border:0;color:#fff;font-size:13px;flex:1;cursor:pointer}
+.role-chip select option{color:#000}
+
+.main{min-width:0;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;z-index:30;background:rgba(244,242,236,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:12px 28px}
+.search{flex:1;max-width:520px;position:relative}
+.search input{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 40px 10px 64px;outline:none;transition:.15s}
+.search input:focus{border-color:var(--brand-2);box-shadow:0 0 0 4px #147a661a}
+.search>svg{position:absolute;right:13px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.search kbd{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:11px;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;color:var(--muted);font-family:inherit}
+.search-results{position:absolute;top:calc(100% + 6px);right:0;left:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--sh-lg);padding:6px;max-height:340px;overflow:auto}
+.search-results a{display:flex;gap:10px;align-items:center;padding:9px 10px;border-radius:8px;cursor:pointer}
+.search-results a:hover{background:var(--surface-2)}
+.search-results small{color:var(--muted);margin-inline-start:auto}
+.top-actions{display:flex;align-items:center;gap:8px;margin-inline-start:auto}
+.icon-btn{width:40px;height:40px;border-radius:11px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;cursor:pointer;position:relative;transition:.15s;color:var(--ink-2)}
+.icon-btn:hover{border-color:#cfc9bb;color:var(--ink)}
+.dot{position:absolute;top:8px;left:9px;width:8px;height:8px;border-radius:50%;background:var(--bad);box-shadow:0 0 0 2px var(--surface)}
+.profile{display:flex;align-items:center;gap:10px;padding:4px 4px 4px 12px;border:1px solid var(--line);background:var(--surface);border-radius:12px;cursor:pointer}
+.avatar{width:32px;height:32px;border-radius:9px;background:var(--gold-soft);color:var(--gold);display:grid;place-items:center;font-weight:700;font-size:13px;flex-shrink:0}
+.profile b{display:block;font-size:13px;line-height:1.2}.profile small{color:var(--muted);font-size:11.5px}
+.dropdown{position:absolute;top:calc(100% + 8px);left:0;width:340px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--sh-lg);z-index:50;overflow:hidden}
+.dropdown header{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.notif{display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line-2);text-align:right}
+.notif:hover{background:var(--surface-2)}
+.notif p{font-size:13px}.notif small{color:var(--muted);font-size:12px}
+.notif .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex-shrink:0}
+.menu-btn{display:none}
+
+.content{padding:24px 28px 48px;max-width:1500px;width:100%;margin:0 auto}
+.crumbs{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12.5px;margin-bottom:8px}
+.crumbs svg{width:13px;height:13px;transform:scaleX(-1)}
+.crumbs b{color:var(--ink-2);font-weight:500}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap}
+.page-head h1{font-family:var(--display);font-size:26px;font-weight:600;letter-spacing:-.2px}
+.page-head p{color:var(--muted);margin-top:2px}
+.head-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ===== Buttons / inputs ===== */
+.btn{display:inline-flex;align-items:center;gap:8px;border-radius:11px;padding:9px 16px;font-weight:500;cursor:pointer;border:1px solid transparent;transition:.15s;white-space:nowrap;font-size:13.5px}
+.btn svg{width:16px;height:16px}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:0 6px 16px -8px var(--brand)}
+.btn-primary:hover{background:var(--brand-2)}
+.btn-ghost{background:var(--surface);border-color:var(--line);color:var(--ink-2)}
+.btn-ghost:hover{border-color:#cfc9bb;color:var(--ink)}
+.btn-danger{background:var(--bad);color:#fff}
+.btn-gold{background:var(--gold);color:#fff}
+.btn-sm{padding:6px 11px;font-size:12.5px;border-radius:9px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-block{width:100%;justify-content:center;padding:12px}
+.act{width:30px;height:30px;border-radius:8px;display:inline-grid;place-items:center;cursor:pointer;color:var(--muted);border:0;background:transparent}
+.act:hover{background:var(--surface-2);color:var(--ink)}
+.act svg{width:16px;height:16px}
+.act.ok:hover{color:var(--ok);background:var(--ok-soft)}.act.bad:hover{color:var(--bad);background:var(--bad-soft)}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field label{font-size:12.5px;color:var(--ink-2);font-weight:500}
+.field label i{color:var(--bad);font-style:normal}
+.input,.select,textarea.input{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 12px;outline:none;transition:.15s;width:100%}
+.input:focus,.select:focus{border-color:var(--brand-2);box-shadow:0 0 0 4px #147a661a}
+.input.err{border-color:var(--bad);box-shadow:0 0 0 4px #c2410c14}
+.err-msg{color:var(--bad);font-size:12px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+
+/* ===== Cards / KPI ===== */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh)}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line-2)}
+.card-h h3{font-size:15px;font-weight:600}
+.card-h small{color:var(--muted)}
+.card-b{padding:18px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+.kpi{padding:18px;position:relative;overflow:hidden}
+.kpi .top{display:flex;justify-content:space-between;align-items:center}
+.kpi .ic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center}
+.kpi .lbl{color:var(--muted);font-size:13px}
+.kpi .val{font-family:var(--display);font-size:28px;font-weight:600;margin-top:12px;letter-spacing:-.5px}
+.kpi .val small{font-size:13px;color:var(--muted);font-weight:400;font-family:var(--font)}
+.trend{font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:3px;border-radius:20px;padding:1px 8px}
+.trend.up{color:var(--ok);background:var(--ok-soft)}.trend.down{color:var(--bad);background:var(--bad-soft)}
+.kpi .spark{position:absolute;left:14px;top:62px;width:30%;height:34px;opacity:.85}
+.kpi.feature{background:linear-gradient(150deg,#13493e,#0d2a24);color:#fff;border-color:transparent}
+.kpi.feature .lbl{color:#a9c6bc}.kpi.feature .val small{color:#a9c6bc}
+.c-brand{background:var(--brand-soft);color:var(--brand)}.c-gold{background:var(--gold-soft);color:var(--gold)}
+.c-ok{background:var(--ok-soft);color:var(--ok)}.c-warn{background:var(--warn-soft);color:var(--warn)}
+.c-bad{background:var(--bad-soft);color:var(--bad)}.c-info{background:var(--info-soft);color:var(--info)}
+.dash-grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px}
+.dash-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.legend{display:flex;gap:14px;font-size:12.5px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.chart{width:100%;height:260px}
+.chart text{font-family:var(--font);font-size:11px;fill:var(--muted)}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;font-size:13px}
+.bar-row .nm{width:110px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-track{flex:1;height:8px;background:var(--line-2);border-radius:8px;overflow:hidden}
+.bar-fill{height:100%;border-radius:8px;background:var(--brand-2);transition:width .8s cubic-bezier(.2,.8,.2,1)}
+.bar-row b{width:46px;text-align:left;font-weight:600;font-size:12.5px}
+.list-item{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px dashed var(--line)}
+.list-item:last-child{border:0}
+.list-item .meta{flex:1;min-width:0}
+.list-item .meta b{display:block;font-weight:500;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.list-item .meta small{color:var(--muted);font-size:12px}
+
+/* ===== Table ===== */
+.toolbar{display:flex;gap:10px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line-2);flex-wrap:wrap}
+.toolbar .search-sm{position:relative;flex:1;min-width:200px;max-width:320px}
+.toolbar .search-sm input{padding-right:36px}
+.toolbar .search-sm svg{position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--muted);width:16px}
+.toolbar .select{width:auto;min-width:140px}
+.tabs{display:flex;gap:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:3px;overflow-x:auto}
+.tabs button{border:0;background:transparent;padding:6px 12px;border-radius:8px;cursor:pointer;color:var(--muted);font-size:13px;white-space:nowrap}
+.tabs button.on{background:var(--surface);color:var(--ink);box-shadow:var(--sh);font-weight:500}
+.tabs button em{font-style:normal;font-size:11px;margin-inline-start:4px;opacity:.7}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{font-size:12px;color:var(--muted);font-weight:500;text-align:right;padding:11px 16px;background:var(--surface-2);border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none}
+th:hover{color:var(--ink)}
+td{padding:12px 16px;border-bottom:1px solid var(--line-2);white-space:nowrap;font-size:13.5px}
+tbody tr{transition:background .12s}
+tbody tr:hover{background:#faf8f3}
+tbody tr:last-child td{border-bottom:0}
+.cell-main{display:flex;align-items:center;gap:10px}
+.cell-main b{font-weight:500;display:block}
+.cell-main small{color:var(--muted);font-size:12px}
+.thumb{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-weight:600;font-size:13px;flex-shrink:0}
+.mono{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:var(--ink-2);direction:ltr;display:inline-block}
+.num{font-variant-numeric:tabular-nums;font-weight:500}
+.pos{color:var(--ok)}.neg{color:var(--bad)}
+.badge{display:inline-flex;align-items:center;gap:6px;border-radius:20px;padding:2px 10px;font-size:12px;font-weight:500}
+.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.b-pending{background:var(--warn-soft);color:var(--warn)}
+.b-approved{background:var(--info-soft);color:var(--info)}
+.b-rejected{background:var(--bad-soft);color:var(--bad)}
+.b-cancelled{background:var(--gray-soft);color:var(--muted)}
+.b-completed{background:var(--ok-soft);color:var(--ok)}
+.b-incoming{background:var(--ok-soft);color:var(--ok)}
+.b-issue{background:var(--info-soft);color:var(--info)}
+.b-consumption{background:var(--gold-soft);color:var(--gold)}
+.b-return{background:var(--brand-soft);color:var(--brand)}
+.b-adjustment_add{background:#e6f4f1;color:#0f766e}
+.b-adjustment_subtract{background:var(--bad-soft);color:var(--bad)}
+.b-low{background:var(--bad-soft);color:var(--bad)}.b-ok{background:var(--ok-soft);color:var(--ok)}.b-mid{background:var(--warn-soft);color:var(--warn)}
+.b-active{background:var(--ok-soft);color:var(--ok)}.b-inactive{background:var(--gray-soft);color:var(--muted)}
+.b-transit{background:var(--info-soft);color:var(--info)}.b-received{background:var(--ok-soft);color:var(--ok)}.b-delayed{background:var(--bad-soft);color:var(--bad)}
+.stock-bar{width:90px;height:6px;background:var(--line-2);border-radius:6px;overflow:hidden;display:inline-block;vertical-align:middle;margin-inline-start:8px}
+.stock-bar i{display:block;height:100%;border-radius:6px}
+.pager{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-top:1px solid var(--line-2);color:var(--muted);font-size:12.5px;flex-wrap:wrap;gap:10px}
+.pager .pages{display:flex;gap:4px}
+.pager button{min-width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:12.5px}
+.pager button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.pager button:disabled{opacity:.4;cursor:default}
+
+/* ===== States ===== */
+.state{padding:56px 20px;text-align:center;color:var(--muted)}
+.state .art{width:72px;height:72px;margin:0 auto 14px;border-radius:20px;display:grid;place-items:center;background:var(--surface-2);border:1px dashed var(--line)}
+.state .art svg{width:30px;height:30px}
+.state h4{color:var(--ink);font-size:15px;margin-bottom:4px}
+.state .btn{margin-top:14px}
+.state.error .art{background:var(--bad-soft);color:var(--bad);border-color:#f5c5ad}
+.skel{background:linear-gradient(90deg,var(--line-2) 25%,#f7f5ef 50%,var(--line-2) 75%);background-size:200% 100%;animation:sh 1.2s infinite;border-radius:8px}
+@keyframes sh{to{background-position:-200% 0}}
+.spinner{width:16px;height:16px;border:2px solid #ffffff55;border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ===== Modal / toast ===== */
+.overlay{position:fixed;inset:0;background:rgba(13,30,26,.45);backdrop-filter:blur(3px);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;animation:fade .18s}
+.modal{background:var(--surface);border-radius:18px;width:100%;max-width:560px;max-height:90vh;display:flex;flex-direction:column;box-shadow:var(--sh-lg);animation:pop .22s cubic-bezier(.2,.9,.3,1.2)}
+.modal.sm{max-width:420px}
+.modal header{padding:18px 22px;border-bottom:1px solid var(--line-2);display:flex;justify-content:space-between;align-items:center}
+.modal header h3{font-family:var(--display);font-size:17px;font-weight:600}
+.modal .body{padding:20px 22px;overflow-y:auto}
+.modal footer{padding:14px 22px;border-top:1px solid var(--line-2);display:flex;gap:8px;justify-content:flex-start;background:var(--surface-2);border-radius:0 0 18px 18px}
+.confirm-ic{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;margin-bottom:12px}
+.confirm-ic svg{width:24px;height:24px}
+@keyframes fade{from{opacity:0}}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.97)}}
+#toasts{position:fixed;bottom:22px;left:22px;z-index:200;display:flex;flex-direction:column;gap:10px}
+.toast{background:var(--ink);color:#fff;border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:10px;min-width:280px;box-shadow:var(--sh-lg);animation:slide .3s cubic-bezier(.2,.9,.3,1.2)}
+.toast .ti{width:26px;height:26px;border-radius:8px;display:grid;place-items:center}
+.toast.success .ti{background:#1f8a5b}.toast.error .ti{background:#c2410c}.toast.info .ti{background:#2563a8}.toast.warning .ti{background:#b7791f}
+.toast svg{width:15px;height:15px}
+@keyframes slide{from{opacity:0;transform:translateX(-30px)}}
+.detail-row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px dashed var(--line);font-size:13.5px}
+.detail-row span{color:var(--muted)}
+.timeline{position:relative;padding-right:18px;margin-top:14px}
+.timeline::before{content:"";position:absolute;right:5px;top:6px;bottom:6px;width:2px;background:var(--line)}
+.tl{position:relative;padding-bottom:14px;font-size:13px}
+.tl::before{content:"";position:absolute;right:-17px;top:5px;width:10px;height:10px;border-radius:50%;background:var(--brand-2);box-shadow:0 0 0 3px var(--brand-soft)}
+.tl small{color:var(--muted);display:block}
+.restricted{display:flex;align-items:center;gap:10px;background:var(--gold-soft);color:#7a5a24;border:1px solid #ecd9b4;border-radius:12px;padding:10px 14px;margin-bottom:16px;font-size:13px}
+.settings-grid{display:grid;grid-template-columns:220px 1fr;gap:16px}
+.settings-nav a{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:10px;cursor:pointer;color:var(--ink-2)}
+.settings-nav a.on{background:var(--surface);box-shadow:var(--sh);color:var(--brand);font-weight:500}
+.switch{position:relative;width:40px;height:22px;flex-shrink:0}
+.switch input{display:none}
+.switch span{position:absolute;inset:0;background:#d6d2c6;border-radius:22px;cursor:pointer;transition:.2s}
+.switch span::after{content:"";position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px #0003}
+.switch input:checked+span{background:var(--brand-2)}
+.switch input:checked+span::after{right:21px}
+.set-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid var(--line-2)}
+.set-row small{color:var(--muted);display:block}
+.report-card{padding:18px;cursor:pointer;transition:.18s}
+.report-card:hover{transform:translateY(-2px);box-shadow:var(--sh-lg);border-color:#cfe2da}
+.report-card .ic{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;margin-bottom:14px}
+.report-card h4{font-size:14.5px;margin-bottom:4px}.report-card p{color:var(--muted);font-size:12.5px}
+.cat-card{padding:18px;display:flex;flex-direction:column;gap:12px}
+.cat-card .top{display:flex;justify-content:space-between;align-items:flex-start}
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.emp-card{padding:18px;text-align:center}
+.emp-card .avatar{width:56px;height:56px;border-radius:16px;font-size:18px;margin:0 auto 10px}
+.fade-in{animation:fu .35s ease both}
+@keyframes fu{from{opacity:0;transform:translateY(6px)}}
+.backdrop{display:none}
+
+/* ===== Responsive ===== */
+@media (max-width:1200px){.kpis{grid-template-columns:repeat(2,1fr)}.dash-grid{grid-template-columns:1fr}.dash-grid-3{grid-template-columns:1fr 1fr}}
+@media (max-width:900px){
+  #app{grid-template-columns:1fr}
+  .sidebar{position:fixed;right:0;top:0;width:280px;transform:translateX(100%);transition:transform .25s}
+  .sidebar.open{transform:none;box-shadow:var(--sh-lg)}
+  .backdrop.show{display:block;position:fixed;inset:0;background:#0006;z-index:35}
+  .menu-btn{display:grid}
+  .topbar{padding:10px 14px}
+  .profile .pinfo,.search kbd{display:none}
+  .content{padding:18px 14px 90px}
+  #login{grid-template-columns:1fr}.login-art{display:none}
+  .dash-grid-3,.settings-grid{grid-template-columns:1fr}
+  .dropdown{position:fixed;top:64px;left:10px;right:10px;width:auto}
+  .mobile-nav{display:flex!important}
+}
+@media (max-width:560px){.kpis{grid-template-columns:1fr 1fr;gap:10px}.kpi .val{font-size:22px}.grid-2{grid-template-columns:1fr}.page-head h1{font-size:21px}.search{max-width:none}}
+.mobile-nav{display:none;position:fixed;bottom:0;right:0;left:0;background:var(--surface);border-top:1px solid var(--line);z-index:30;justify-content:space-around;padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+.mobile-nav a{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;color:var(--muted);padding:4px 8px;border-radius:10px;cursor:pointer}
+.mobile-nav a.active{color:var(--brand)}
+.icon-btn.spin svg{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- ============ BOOT LOADER ============ -->
+<div id="boot" style="min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;color:var(--muted)"><div class="logo" style="width:48px;height:48px;border-radius:14px;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font:600 22px var(--display)">ر</div><span id="bootMsg">جارٍ التحميل...</span></div>
+
+<!-- ============ LOGIN ============ -->
+<section id="login" class="hidden">
+  <div class="login-art">
+    <div class="brand" style="padding:0"><div class="logo">ر</div><div><b>روابي فرح</b><small>Rawabi Farah</small></div></div>
+    <div>
+      <h1>كل قطعة في مخزونك، في مكانها الصحيح.</h1>
+      <p>منصة موحّدة لإدارة المخزون، طلبات السحب، عُهد الموظفين، الشحنات الواردة والاستهلاك — بشفافية كاملة وسجل تدقيق لكل حركة.</p>
+    </div>
+    <div class="login-stats"><div><b>مخزون</b><span>أرصدة لحظية</span></div><div><b>عُهد</b><span>متابعة الموظفين</span></div><div><b>تدقيق</b><span>سجل لكل حركة</span></div></div>
+  </div>
+  <div class="login-form">
+    <form class="login-card" id="loginForm" novalidate>
+      <div class="brand" style="padding:0 0 28px"><div class="logo">ر</div><div><b style="color:var(--ink)">روابي فرح</b><small>نظام المخزون والعمليات</small></div></div>
+      <h2>مرحباً بعودتك</h2>
+      <p style="color:var(--muted);margin-bottom:24px">سجّل الدخول للمتابعة إلى لوحة التحكم</p>
+      <div class="field"><label>البريد الإلكتروني</label><input class="input" id="lgEmail" type="email" autocomplete="username" dir="ltr" style="text-align:right"><span class="err-msg hidden">يرجى إدخال بريد إلكتروني صحيح</span></div>
+      <div class="field"><label>كلمة المرور</label><input class="input" id="lgPass" type="password" autocomplete="current-password"><span class="err-msg hidden">كلمة المرور مطلوبة (6 أحرف على الأقل)</span></div>
+      <div id="lgError" class="restricted hidden" style="margin-bottom:14px"></div>
+      <button class="btn btn-primary btn-block" id="lgBtn" type="submit">تسجيل الدخول</button>
+      <p style="text-align:center;color:var(--muted);font-size:12px;margin-top:18px">اتصال آمن — يتم التحقق من صلاحياتك من الخادم</p>
+    </form>
+  </div>
+</section>
+
+<!-- ============ APP ============ -->
+<div id="app" class="hidden">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><div class="logo">ر</div><div><b>روابي فرح</b><small>المخزون والعمليات</small></div></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-foot">
+      <div class="role-chip"><div class="avatar" id="sideAv">م</div><span id="sideRole" style="color:#fff;font-size:13px;flex:1"></span></div>
+    </div>
+  </aside>
+  <div class="backdrop" id="backdrop"></div>
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" id="menuBtn" aria-label="القائمة"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <div class="search">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="gSearch" placeholder="ابحث عن منتج، موظف، طلب، أو صفحة..." autocomplete="off">
+        <kbd>Ctrl K</kbd>
+        <div class="search-results hidden" id="gResults"></div>
+      </div>
+      <div class="top-actions">
+        <button class="icon-btn" id="reloadBtn" aria-label="تحديث البيانات" title="تحديث البيانات"><svg viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/></svg></button>
+        <div style="position:relative">
+          <button class="icon-btn" id="notifBtn" aria-label="الإشعارات"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="dot" id="notifDot"></span></button>
+          <div class="dropdown hidden" id="notifDrop"></div>
+        </div>
+        <div style="position:relative">
+          <div class="profile" id="profileBtn"><div class="pinfo"><b id="pName"></b><small id="pRole"></small></div><div class="avatar" id="pAv"></div></div>
+          <div class="dropdown hidden" id="profileDrop" style="width:240px">
+            <div style="padding:8px">
+              <a style="display:flex;gap:10px;padding:10px;border-radius:8px;cursor:pointer" onclick="setTab='profile';go('settings')"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>الملف الشخصي</a>
+              <a style="display:flex;gap:10px;padding:10px;border-radius:8px;cursor:pointer" onclick="setTab='security';go('settings')"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>الأمان</a>
+              <a style="display:flex;gap:10px;padding:10px;border-radius:8px;cursor:pointer;color:var(--bad)" onclick="logout()"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>تسجيل الخروج</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+    <main class="content" id="content"></main>
+  </div>
+  <nav class="mobile-nav" id="mobileNav"></nav>
+</div>
+<div id="toasts"></div>
+<div id="modalRoot"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* =========================================================
+   Rawabi Farah — Inventory & Operations (Phase 3: Production)
+   Security boundary = Supabase RLS + RPCs. Frontend role checks
+   only hide UI; they are never trusted for authorization.
+   ========================================================= */
+const DEMO_MODE = false;
+const SUPABASE_URL = 'https://kzttenwuaogvmmkcmkub.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_AD84b3Kdc7eKGMJ7ZzWckA_lbycq-uN'; // public key only
+/* Values sent as p_adjustment_type to adjust_inventory_stock — change here if your DB uses different words */
+const ADJ_ADD = 'add', ADJ_SUB = 'subtract';
+/* ---------- Icons ---------- */
+const I = {
+  dash:'<path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/>',
+  box:'<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/>',
+  tag:'<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+  layers:'<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/>',
+  clip:'<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 14l2 2 4-4"/>',
+  hand:'<path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>',
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  truck:'<path d="M1 3h15v13H1zM16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>',
+  flame:'<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+  undo:'<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/>',
+  sliders:'<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
+  swap:'<path d="M17 3l4 4-4 4M3 7h18M7 21l-4-4 4-4M21 17H3"/>',
+  shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
+  chart:'<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
+  cog:'<circle cx="12" cy="12" r="3"/><path d="M12 1v3M12 20v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M1 12h3M20 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  eye:'<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+  edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+  trash:'<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>',x:'<path d="M18 6 6 18M6 6l12 12"/>',
+  down:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
+  alert:'<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+  info:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+  lock:'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  inbox:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1z"/>',
+  refresh:'<path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/>',
+  print:'<path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>',
+  bell:'<path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>',up:'<path d="m18 15-6-6-6 6"/>',dn:'<path d="m6 9 6 6 6-6"/>',
+  chev:'<path d="m9 18 6-6-6-6"/>',user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  globe:'<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20"/>',
+};
+const ic = (n, s='') => `<svg viewBox="0 0 24 24" ${s}>${I[n]||''}</svg>`;
+
+/* ---------- Helpers ---------- */
+const $ = s => document.querySelector(s);
+const fmt = n => Number(n).toLocaleString('ar-EG-u-nu-latn');
+const rnd = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
+const pick = a => a[rnd(0,a.length-1)];
+const dstr = d => d.toISOString().slice(0,10);
+const daysAgo = n => { const d=new Date(); d.setDate(d.getDate()-n); return d; };
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const initials = n => n.split(' ').map(w=>w[0]).slice(0,2).join('');
+const tones = ['c-brand','c-gold','c-info','c-ok','c-warn'];
+const toneOf = s => tones[[...s].reduce((a,c)=>a+c.charCodeAt(0),0)%tones.length];
+
+/* ---------- Labels ---------- */
+const STATUS = {pending:'قيد الانتظار',approved:'موافق عليه',rejected:'مرفوض',cancelled:'ملغي',completed:'مكتمل'};
+const TXN = {incoming:'وارد',issue:'صرف',consumption:'استهلاك',return:'مرتجع',adjustment_add:'تسوية بالزيادة',adjustment_subtract:'تسوية بالنقص'};
+const ROLES = {admin:'مدير النظام',supervisor:'مشرف',employee:'موظف'};
+const SHIP = {transit:'في الطريق',received:'تم الاستلام',delayed:'متأخرة',pending:'قيد الانتظار'};
+
+/* ---------- Generic data table ---------- */
+/* cfg: {key, rows(), cols:[{h,k,r(row),sort}], searchKeys(row)->string, filters:[{k,label,opts:{v:label},fn(row,v)}], tabs:{k,opts,fn}, actions(row) } */
+const TABLES = {};
+function table(cfg){
+  TABLES[cfg.key]=cfg;
+  const st = S.tbl[cfg.key] ||= {q:'',page:1,per:cfg.per||10,f:{},tab:'all',sort:null,dir:1};
+  return `<div class="card" id="tbl-${cfg.key}">${tableInner(cfg.key)}</div>`;
+}
+function tableInner(key){
+  const cfg=TABLES[key], st=S.tbl[key];
+  let rows = cfg.rows();
+  const all = rows;
+  if(cfg.tabs && st.tab!=='all') rows = rows.filter(r=>cfg.tabs.fn(r,st.tab));
+  if(st.q) rows = rows.filter(r=>cfg.searchKeys(r).toLowerCase().includes(st.q.toLowerCase()));
+  (cfg.filters||[]).forEach(f=>{ if(st.f[f.k]) rows = rows.filter(r=>f.fn(r,st.f[f.k])); });
+  if(st.sort!=null){ const c=cfg.cols[st.sort]; if(c.sort) rows=[...rows].sort((a,b)=>{const x=c.sort(a),y=c.sort(b);return (x>y?1:x<y?-1:0)*st.dir}); }
+  const total=rows.length, pages=Math.max(1,Math.ceil(total/st.per)); if(st.page>pages) st.page=pages;
+  const slice = rows.slice((st.page-1)*st.per, st.page*st.per);
+  const tabs = cfg.tabs?`<div class="tabs">${[['all','الكل'],...Object.entries(cfg.tabs.opts)].map(([v,l])=>`<button class="${st.tab===v?'on':''}" onclick="tblSet('${key}','tab','${v}')">${l}<em>${v==='all'?all.length:all.filter(r=>cfg.tabs.fn(r,v)).length}</em></button>`).join('')}</div>`:'';
+  const filters = (cfg.filters||[]).map(f=>`<select class="select" onchange="tblFilter('${key}','${f.k}',this.value)"><option value="">${f.label}</option>${Object.entries(f.opts).map(([v,l])=>`<option value="${v}" ${st.f[f.k]==v?'selected':''}>${l}</option>`).join('')}</select>`).join('');
+  const hasF = st.q||Object.values(st.f).some(Boolean)||st.tab!=='all';
+  const body = slice.length ? `<div class="table-wrap"><table><thead><tr>${cfg.cols.map((c,i)=>`<th onclick="${c.sort?`tblSort('${key}',${i})`:''}">${c.h}${st.sort===i?(st.dir>0?' ↑':' ↓'):''}</th>`).join('')}${cfg.actions?'<th style="text-align:left">إجراءات</th>':''}</tr></thead><tbody>${slice.map(r=>`<tr>${cfg.cols.map(c=>`<td>${c.r(r)}</td>`).join('')}${cfg.actions?`<td style="text-align:left">${cfg.actions(r)}</td>`:''}</tr>`).join('')}</tbody></table></div>`
+    : emptyState(hasF?'لا توجد نتائج مطابقة':'لا توجد بيانات بعد', hasF?'جرّب تعديل كلمات البحث أو إزالة عوامل التصفية.':'ستظهر السجلات هنا فور إضافتها.', hasF?`<button class="btn btn-ghost" onclick="tblReset('${key}')">${ic('refresh')}مسح التصفية</button>`:'');
+  const pnums = []; for(let i=1;i<=pages;i++){ if(i===1||i===pages||Math.abs(i-st.page)<=1) pnums.push(i); else if(pnums[pnums.length-1]!=='…') pnums.push('…'); }
+  const pager = total? `<div class="pager"><span>عرض ${fmt((st.page-1)*st.per+1)}–${fmt(Math.min(st.page*st.per,total))} من ${fmt(total)} سجل</span>
+    <div style="display:flex;gap:8px;align-items:center"><select class="select" style="width:auto;padding:5px 8px" onchange="tblSet('${key}','per',+this.value)">${[10,20,50].map(n=>`<option ${st.per===n?'selected':''} value="${n}">${n} / صفحة</option>`).join('')}</select>
+    <div class="pages"><button ${st.page===1?'disabled':''} onclick="tblSet('${key}','page',${st.page-1})">›</button>${pnums.map(n=>n==='…'?'<button disabled>…</button>':`<button class="${n===st.page?'on':''}" onclick="tblSet('${key}','page',${n})">${n}</button>`).join('')}<button ${st.page===pages?'disabled':''} onclick="tblSet('${key}','page',${st.page+1})">‹</button></div></div></div>`:'';
+  return `<div class="toolbar">${tabs}<div class="search-sm">${ic('search')}<input class="input" placeholder="بحث..." value="${esc(st.q)}" oninput="tblSearch('${key}',this)"></div>${filters}<div style="margin-inline-start:auto;display:flex;gap:6px"><button class="btn btn-ghost btn-sm" onclick="exportCSV('${key}')">${ic('down')}تصدير</button></div></div>${body}${pager}`;
+}
+function rerender(key){ const el=$('#tbl-'+key); if(el) el.innerHTML=tableInner(key); }
+let tdeb; function tblSearch(k,el){ S.tbl[k].q=el.value; S.tbl[k].page=1; clearTimeout(tdeb); tdeb=setTimeout(()=>{rerender(k); const i=$('#tbl-'+k+' .search-sm input'); i.focus(); i.setSelectionRange(i.value.length,i.value.length);},180); }
+function tblSet(k,f,v){ S.tbl[k][f]=v; if(f!=='page') S.tbl[k].page=1; rerender(k); }
+function tblFilter(k,f,v){ S.tbl[k].f[f]=v; S.tbl[k].page=1; rerender(k); }
+function tblSort(k,i){ const st=S.tbl[k]; if(st.sort===i) st.dir*=-1; else {st.sort=i;st.dir=1} rerender(k); }
+function tblReset(k){ Object.assign(S.tbl[k],{q:'',f:{},tab:'all',page:1}); rerender(k); }
+function exportCSV(k){ toast('جارٍ تجهيز ملف التصدير...','info'); setTimeout(()=>{ const cfg=TABLES[k]; const rows=cfg.rows(); const strip=h=>h.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim(); const csv='\ufeff'+[cfg.cols.map(c=>c.h).join(','),...rows.map(r=>cfg.cols.map(c=>'"'+strip(c.r(r)).replace(/"/g,'""')+'"').join(','))].join('\n'); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=k+'.csv'; a.click(); toast('تم تصدير '+fmt(rows.length)+' سجل بنجاح','success'); },600); }
+function emptyState(t,s,btn=''){ return `<div class="state"><div class="art">${ic('inbox')}</div><h4>${t}</h4><p>${s}</p>${btn}</div>`; }
+function errorState(t,s,retry){ return `<div class="state error"><div class="art">${ic('alert')}</div><h4>${t}</h4><p>${s}</p><button class="btn btn-ghost" onclick="${retry}">${ic('refresh')}إعادة المحاولة</button></div>`; }
+
+/* ---------- Charts (inline SVG) ---------- */
+function areaChart(series, labels, colors){
+  const W=700,H=260,pl=36,pb=26,pt=10; const max=(Math.max(...series.flat())||1)*1.15;
+  const x=i=>pl+(W-pl-10)*i/(labels.length-1), y=v=>pt+(H-pt-pb)*(1-v/max);
+  let g=''; for(let k=0;k<=4;k++){const v=max*k/4;g+=`<line x1="${pl}" x2="${W-10}" y1="${y(v)}" y2="${y(v)}" stroke="#ece8de" stroke-dasharray="3 4"/><text x="${pl-8}" y="${y(v)+4}" text-anchor="end">${Math.round(v)}</text>`}
+  labels.forEach((l,i)=>{ if(i%2===0||labels.length<8) g+=`<text x="${x(i)}" y="${H-6}" text-anchor="middle">${l}</text>` });
+  const paths = series.map((s,si)=>{ const pts=s.map((v,i)=>[x(i),y(v)]); const d=pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+    return `<defs><linearGradient id="ag${si}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${colors[si]}" stop-opacity=".22"/><stop offset="1" stop-color="${colors[si]}" stop-opacity="0"/></linearGradient></defs><path d="${d} L${x(s.length-1)} ${H-pb} L${pl} ${H-pb}Z" fill="url(#ag${si})"/><path d="${d}" stroke="${colors[si]}" stroke-width="2.4" fill="none" stroke-linecap="round" style="stroke-dasharray:2000;stroke-dashoffset:2000;animation:draw 1.4s ease forwards"/>${pts.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="#fff" stroke="${colors[si]}" stroke-width="2"><title>${Math.round(max*(1-(p[1]-pt)/(H-pt-pb)))}</title></circle>`).join('')}`; }).join('');
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="direction:ltr;width:100%;height:260px;stroke-width:1">${g}${paths}</svg><style>@keyframes draw{to{stroke-dashoffset:0}}</style>`;
+}
+function donut(parts){
+  const tot=parts.reduce((a,p)=>a+p.v,0); let acc=0; const R=60, Cc=2*Math.PI*R;
+  const segs=parts.map(p=>{const len=Cc*p.v/tot;const s=`<circle r="${R}" cx="80" cy="80" fill="none" stroke="${p.c}" stroke-width="20" stroke-dasharray="${len} ${Cc-len}" stroke-dashoffset="${-acc}" transform="rotate(-90 80 80)"/>`;acc+=len;return s}).join('');
+  return `<div style="display:flex;align-items:center;gap:22px;flex-wrap:wrap"><svg viewBox="0 0 160 160" style="width:150px;height:150px;stroke-width:1">${segs}<text x="80" y="76" text-anchor="middle" style="font:600 22px var(--display);fill:var(--ink)">${fmt(tot)}</text><text x="80" y="96" text-anchor="middle" style="font-size:11px;fill:var(--muted)">طلب</text></svg><div style="flex:1;min-width:140px">${parts.map(p=>`<div style="display:flex;align-items:center;gap:8px;margin:7px 0;font-size:13px"><i style="width:10px;height:10px;border-radius:3px;background:${p.c}"></i>${p.l}<b style="margin-inline-start:auto">${p.v}</b></div>`).join('')}</div></div>`;
+}
+const spark = (vals,c) => { const m=Math.max(...vals)||1; return `<svg class="spark" viewBox="0 0 100 40" preserveAspectRatio="none" style="stroke-width:1"><path d="${vals.map((v,i)=>(i?'L':'M')+(i*100/(vals.length-1))+' '+(38-v/m*30)).join(' ')}" stroke="${c}" stroke-width="2" fill="none" vector-effect="non-scaling-stroke"/></svg>`; };
+function modal({title,body,footer,size=''}){
+  $('#modalRoot').innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal ${size}" role="dialog"><header><h3>${title}</h3><button class="act" onclick="closeModal()">${ic('x')}</button></header><div class="body">${body}</div>${footer?`<footer>${footer}</footer>`:''}</div></div>`;
+  setTimeout(()=>$('#modalRoot .body input, #modalRoot .body select')?.focus(),50);
+}
+function closeModal(){ $('#modalRoot').innerHTML=''; }
+function confirmDialog({title,msg,ok='تأكيد',danger=false,fn}){
+  modal({size:'sm',title:'تأكيد الإجراء',body:`<div class="confirm-ic ${danger?'c-bad':'c-warn'}">${ic(danger?'trash':'alert')}</div><h3 style="font-size:17px;margin-bottom:6px">${title}</h3><p style="color:var(--muted)">${msg}</p>`,footer:`<button class="btn ${danger?'btn-danger':'btn-primary'}" id="cfOk">${ok}</button><button class="btn btn-ghost" onclick="closeModal()">إلغاء</button>`});
+  $('#cfOk').onclick=()=>{ const b=$('#cfOk'); b.innerHTML='<span class="spinner"></span>'; b.disabled=true; closeModal();Promise.resolve(fn()).catch(()=>{}); };
+}
+function toast(msg,type='success'){
+  const icn={success:'check',error:'x',info:'info',warning:'alert'}[type];
+  const t=document.createElement('div'); t.className='toast '+type; t.innerHTML=`<div class="ti">${ic(icn)}</div><span style="flex:1">${msg}</span>`;
+  $('#toasts').appendChild(t); setTimeout(()=>{t.style.transition='.3s';t.style.opacity=0;t.style.transform='translateX(-20px)';setTimeout(()=>t.remove(),300)},3200);
+}
+
+/* form builder: fields [{n,l,type,req,opts,val,full}] */
+function form(fields){ return `<form id="mf" novalidate><div class="grid-2">${fields.map(f=>`<div class="field" style="${f.full?'grid-column:1/-1':''}"><label>${f.l}${f.req?' <i>*</i>':''}</label>${
+  f.type==='select'?`<select class="select" name="${f.n}"><option value="">اختر...</option>${Object.entries(f.opts).map(([v,l])=>`<option value="${v}" ${f.val==v?'selected':''}>${esc(l)}</option>`).join('')}</select>`:
+  f.type==='textarea'?`<textarea class="input" name="${f.n}" rows="3">${esc(f.val||'')}</textarea>`:
+  `<input class="input" name="${f.n}" type="${f.type||'text'}" value="${esc(f.val??'')}" ${f.type==='number'?'min="0"':''}>`}<span class="err-msg hidden">هذا الحقل مطلوب</span></div>`).join('')}</div></form>`; }
+/* ---------- Supabase client ---------- */
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true}});
+
+STATUS.issued='تم الصرف'; STATUS.partially_issued='صرف جزئي'; STATUS.draft='مسودة';
+const ST_CLS = {pending:'pending',approved:'approved',rejected:'rejected',cancelled:'cancelled',completed:'completed',issued:'completed',partially_issued:'approved',draft:'cancelled'};
+const stBadge = s => badge(ST_CLS[s]||'cancelled', esc(STATUS[s]||s||'—'));
+TXN.adjustment='تسوية'; TXN.receive='وارد'; TXN.incoming_shipment='وارد';
+const NEG_TX = ['issue','consumption','adjustment_subtract'];
+const txBadge = t => badge(TXN[t]?t:'issue', esc(TXN[t]||t||'—'));
+const isAdd = t => t===ADJ_ADD || /add|increase|plus/i.test(String(t||''));
+
+/* ---------- Error handling ---------- */
+function errMsg(e){
+  const m = String(e?.message||e||'');
+  if(/Invalid login credentials/i.test(m)) return 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+  if(/Email not confirmed/i.test(m)) return 'لم يتم تأكيد البريد الإلكتروني بعد';
+  if(e?.code==='42501' || /permission denied|row-level security|not allowed|unauthori[sz]ed|forbidden/i.test(m)) return 'ليست لديك صلاحية لتنفيذ هذا الإجراء';
+  if(e?.code==='23505' || /duplicate key/i.test(m)) return 'هذه القيمة مستخدمة مسبقاً';
+  if(e?.code==='23503' || /foreign key/i.test(m)) return 'لا يمكن تنفيذ العملية: السجل مرتبط ببيانات أخرى';
+  if(e?.code==='23514' || /check constraint/i.test(m)) return 'القيمة المدخلة غير مقبولة';
+  if(/Failed to fetch|NetworkError|network/i.test(m)) return 'تعذّر الاتصال بالخادم، تحقق من اتصالك بالإنترنت';
+  if(/JWT|session/i.test(m)) return 'انتهت الجلسة، يرجى تسجيل الدخول مجدداً';
+  return m || 'حدث خطأ غير متوقع';
+}
+async function q(p){ const {data,error} = await p; if(error) throw error; return data; }
+async function safe(name, p){ try{ return (await q(p))||[]; }catch(e){ console.warn('[load]',name,e.message); S.loadErr[name]=errMsg(e); return []; } }
+async function audit(action, entity_type, entity_id, details){ // best-effort, never blocks the main action
+  try{ await sb.rpc('write_audit_log',{p_action:action,p_entity_type:entity_type,p_entity_id:entity_id||null,p_user_id:S.uid,p_details:details||{}}); }catch(_){}
+}
+const nowISO = () => new Date().toISOString();
+const dOnly = s => s ? String(s).slice(0,10) : '—';
+const toD = s => s ? new Date(s) : new Date(0);
+const shortId = id => id ? '#'+String(id).slice(0,8).toUpperCase() : '—';
+
+/* ---------- Data cache (filled from Supabase) ---------- */
+const DB = {cats:[],products:[],employees:[],requests:[],held:[],shipments:[],consumption:[],returns:[],adjustments:[],transactions:[],audit:[],profiles:{}};
+const P = id => DB.products.find(p=>p.id===id)||{name:'—',unit:'',sku:'',stock:0,min:0,held:0};
+const E = id => DB.employees.find(e=>e.id===id)||{name:'—',dept:''};
+const C = id => DB.cats.find(c=>c.id===id)||{name:'—'};
+const U = id => DB.profiles[id] || (id===S.uid?S.user.name:'—');
+const stockLevel = p => p.stock<=0||p.stock<p.min?'low':p.stock<p.min*1.5?'mid':'ok';
+const levelLabel = {low:'منخفض',mid:'متوسط',ok:'جيد'};
+
+const S = {role:'employee', page:'dashboard', uid:null, email:'', user:{id:null,name:'',dept:''}, tbl:{}, notifs:[], loadErr:{}, loaded:false};
+
+async function loadAll(){
+  S.loadErr = {};
+  const adm = S.role==='admin';
+  const [cats,prods,inv,emps,held,reqs,items,ships,cons,rets,adjs,txs,aud,profs] = await Promise.all([
+    safe('categories', sb.from('categories').select('id,name,status,created_at').order('name')),
+    safe('products', sb.from('products').select('id,product_code,name,category_id,unit,qr_code,minimum_stock,status,created_at,updated_at').order('name')),
+    safe('inventory', sb.from('inventory').select('id,product_id,current_stock,reserved_stock,employee_held_stock,updated_at,updated_by')),
+    safe('employees', sb.from('employees').select('id,full_name,department,phone,status,created_at,updated_at').order('full_name')),
+    safe('employee_inventory', sb.from('employee_inventory').select('id,employee_id,product_id,quantity,updated_at,updated_by')),
+    safe('withdrawal_requests', sb.from('withdrawal_requests').select('id,employee_id,status,requested_at,approved_by,approved_at,rejected_by,rejected_at,rejection_reason,notes').order('requested_at',{ascending:false}).limit(1000)),
+    safe('withdrawal_request_items', sb.from('withdrawal_request_items').select('id,request_id,product_id,requested_quantity,approved_quantity,issued_quantity,remaining_quantity,created_at')),
+    isMgr()?safe('incoming_shipments', sb.from('incoming_shipments').select('id,product_id,quantity,supplier,shipment_number,received_by,received_at,notes,created_by,created_at').order('received_at',{ascending:false}).limit(1000)):Promise.resolve([]),
+    safe('consumptions', sb.from('consumptions').select('id,employee_id,product_id,quantity,request_id,recorded_by,consumed_at,notes').order('consumed_at',{ascending:false}).limit(1000)),
+    safe('returns', sb.from('returns').select('id,employee_id,product_id,quantity,request_id,recorded_by,returned_at,notes').order('returned_at',{ascending:false}).limit(1000)),
+    isMgr()?safe('stock_adjustments', sb.from('stock_adjustments').select('id,product_id,adjustment_type,quantity,reason,performed_by,created_at').order('created_at',{ascending:false}).limit(1000)):Promise.resolve([]),
+    safe('inventory_transactions', sb.from('inventory_transactions').select('id,transaction_type,product_id,quantity,reference_id,employee_id,performed_by,stock_before,stock_after,notes,created_at').order('created_at',{ascending:false}).limit(2000)),
+    adm?safe('audit_logs', sb.from('audit_logs').select('id,action,entity_type,entity_id,user_id,details,created_at').order('created_at',{ascending:false}).limit(1000)):Promise.resolve([]),
+    safe('profiles', sb.from('profiles').select('id,full_name')),
+  ]);
+  DB.profiles = Object.fromEntries(profs.map(p=>[p.id,p.full_name||'—']));
+  DB.cats = cats.map((c,i)=>({id:c.id,name:c.name||'—',status:c.status,active:c.status!=='inactive',color:tones[i%tones.length]}));
+  const invBy = Object.fromEntries(inv.map(i=>[i.product_id,i]));
+  DB.products = prods.map(p=>{ const i=invBy[p.id]||{}; return {id:p.id,sku:p.product_code||'',name:p.name||'—',cat:p.category_id,unit:p.unit||'',qr:p.qr_code||'',min:+p.minimum_stock||0,status:p.status,active:p.status!=='inactive',stock:+i.current_stock||0,reserved:+i.reserved_stock||0,held:+i.employee_held_stock||0,invUpdated:i.updated_at}; });
+  DB.employees = emps.map(e=>({id:e.id,name:e.full_name||'—',dept:e.department||'',phone:e.phone||'',status:e.status,active:e.status!=='inactive',created:e.created_at}));
+  DB.held = held.filter(h=>+h.quantity>0).map(h=>({id:h.id,emp:h.employee_id,p:h.product_id,q:+h.quantity,since:h.updated_at,by:h.updated_by}));
+  const itemsBy = {}; items.forEach(it=>{ (itemsBy[it.request_id] ||= []).push({id:it.id,p:it.product_id,q:+it.requested_quantity||0,approved:it.approved_quantity,issued:it.issued_quantity,remaining:it.remaining_quantity}); });
+  DB.requests = reqs.map(r=>({id:r.id,emp:r.employee_id,status:r.status,date:r.requested_at,approvedBy:r.approved_by,approvedAt:r.approved_at,rejectedBy:r.rejected_by,rejectedAt:r.rejected_at,reason:r.rejection_reason,note:r.notes||'',items:itemsBy[r.id]||[]}));
+  DB.shipments = ships.map(s=>({id:s.id,p:s.product_id,q:+s.quantity||0,supplier:s.supplier||'—',no:s.shipment_number||'',receivedBy:s.received_by,date:s.received_at||s.created_at,note:s.notes||'',createdBy:s.created_by}));
+  DB.consumption = cons.map(c=>({id:c.id,emp:c.employee_id,p:c.product_id,q:+c.quantity||0,req:c.request_id,by:c.recorded_by,date:c.consumed_at,note:c.notes||''}));
+  DB.returns = rets.map(r=>({id:r.id,emp:r.employee_id,p:r.product_id,q:+r.quantity||0,req:r.request_id,by:r.recorded_by,date:r.returned_at,note:r.notes||''}));
+  DB.adjustments = adjs.map(a=>({id:a.id,p:a.product_id,type:a.adjustment_type,q:+a.quantity||0,reason:a.reason||'',by:a.performed_by,date:a.created_at}));
+  DB.transactions = txs.map(t=>({id:t.id,type:t.transaction_type,p:t.product_id,q:+t.quantity||0,ref:t.reference_id,emp:t.employee_id,by:t.performed_by,before:t.stock_before,after:t.stock_after,note:t.notes||'',date:toD(t.created_at)}));
+  DB.audit = aud.map(a=>({id:a.id,act:a.action||'',entity:a.entity_type||'',entityId:a.entity_id,user:a.user_id,details:a.details,date:toD(a.created_at)}));
+  buildNotifs(); S.loaded = true;
+}
+function buildNotifs(){
+  const n=[]; const pend=DB.requests.filter(r=>r.status==='pending');
+  if(isMgr() && pend.length) n.push({t:`${pend.length} طلب سحب بانتظار المراجعة`,time:'الآن',ic:'clip',c:'c-warn',unread:true,fn:"go('requests')"});
+  if(isMgr()) DB.products.filter(p=>p.active&&p.stock<p.min).slice(0,6).forEach(p=>n.push({t:`المنتج "${esc(p.name)}" تحت الحد الأدنى (${fmt(p.stock)} ${esc(p.unit)})`,time:'تنبيه مخزون',ic:'alert',c:'c-bad',unread:true,fn:`viewProduct('${p.id}')`}));
+  if(!isMgr()) DB.requests.filter(r=>r.emp===S.user.id&&r.status!=='pending').slice(0,5).forEach(r=>n.push({t:`طلبك ${shortId(r.id)}: ${STATUS[r.status]||r.status}`,time:dOnly(r.approvedAt||r.rejectedAt||r.date),ic:'clip',c:'c-info',unread:false,fn:`viewRequest('${r.id}')`}));
+  S.notifs = n;
+}
+
+/* ---------- Navigation config ---------- */
+const PAGES = [
+  {g:'الرئيسية'},
+  {id:'dashboard',t:'لوحة التحكم',ic:'dash',roles:['admin','supervisor','employee']},
+  {g:'المخزون'},
+  {id:'inventory',t:'المخزون',ic:'box',roles:['admin','supervisor','employee']},
+  {id:'products',t:'المنتجات',ic:'tag',roles:['admin','supervisor']},
+  {id:'categories',t:'الفئات',ic:'layers',roles:['admin','supervisor']},
+  {g:'العمليات'},
+  {id:'requests',t:'طلبات السحب',ic:'clip',roles:['admin','supervisor','employee'],count:()=>isMgr()?DB.requests.filter(r=>r.status==='pending').length:0},
+  {id:'held',t:'عُهد الموظفين',ic:'hand',roles:['admin','supervisor','employee']},
+  {id:'shipments',t:'الشحنات الواردة',ic:'truck',roles:['admin','supervisor']},
+  {id:'consumption',t:'الاستهلاك',ic:'flame',roles:['admin','supervisor','employee']},
+  {id:'returns',t:'المرتجعات',ic:'undo',roles:['admin','supervisor','employee']},
+  {id:'adjustments',t:'تسويات المخزون',ic:'sliders',roles:['admin','supervisor']},
+  {id:'transactions',t:'حركات المخزون',ic:'swap',roles:['admin','supervisor']},
+  {g:'الإدارة'},
+  {id:'employees',t:'الموظفون',ic:'users',roles:['admin','supervisor']},
+  {id:'audit',t:'سجل التدقيق',ic:'shield',roles:['admin']},
+  {id:'reports',t:'التقارير',ic:'chart',roles:['admin','supervisor']},
+  {id:'settings',t:'الإعدادات',ic:'cog',roles:['admin','supervisor','employee']},
+];
+const pageMeta = id => PAGES.find(p=>p.id===id);
+const can = id => !!pageMeta(id)?.roles.includes(S.role);
+const isMgr = () => S.role==='admin' || S.role==='supervisor';
+const mine = () => S.role==='employee';
+
+function renderNav(){
+  $('#nav').innerHTML = PAGES.map(p=>{
+    if(p.g) return `<div class="nav-group">${p.g}</div>`;
+    if(!p.roles.includes(S.role)) return '';
+    const c = p.count?p.count():0;
+    return `<a class="${S.page===p.id?'active':''}" onclick="go('${p.id}')">${ic(p.ic)}<span>${p.t}</span>${c?`<span class="count">${c}</span>`:''}</a>`;
+  }).join('').replace(/(<div class="nav-group">[^<]*<\/div>)(?=<div class="nav-group">|$)/g,'');
+  const mob = ['dashboard','inventory','requests','held','settings'];
+  $('#mobileNav').innerHTML = mob.map(id=>{const p=pageMeta(id);return `<a class="${S.page===id?'active':''}" onclick="go('${id}')">${ic(p.ic)}<span>${p.t}</span></a>`}).join('');
+}
+
+/* ---------- Router ---------- */
+function go(id, keepScroll){
+  if(!VIEWS[id]) id='dashboard';
+  if(!can(id)){ toast('ليست لديك صلاحية للوصول إلى هذه الصفحة','warning'); id='dashboard'; }
+  S.page=id; if(location.hash.slice(1)!==id) history.replaceState(null,'','#'+id);
+  closeAll(); $('#sidebar').classList.remove('open'); $('#backdrop').classList.remove('show');
+  renderNav();
+  const meta = pageMeta(id);
+  if(!keepScroll) window.scrollTo({top:0});
+  try{ $('#content').innerHTML = `<div class="fade-in">${crumbs(meta)}${loadWarn()}${VIEWS[id]()}</div>`; afterRender[id]?.(); }
+  catch(e){ console.error(e); $('#content').innerHTML = errorState('تعذّر عرض الصفحة', esc(errMsg(e)), 'reload()'); }
+}
+function loadWarn(){ const k=Object.keys(S.loadErr); if(!k.length) return ''; const perm=k.filter(n=>/صلاحية/.test(S.loadErr[n])); return perm.length===k.length?'':restrictedNote('تعذّر تحميل بعض البيانات ('+k.map(esc).join('، ')+'). '+esc(Object.values(S.loadErr)[0])+` <a style="color:var(--brand);cursor:pointer;margin-inline-start:6px" onclick="reload()">إعادة المحاولة</a>`); }
+function crumbs(m){ const grp = (()=>{let g='';for(const p of PAGES){if(p.g)g=p.g;if(p.id===m.id)return g}})(); return `<div class="crumbs">روابي فرح ${ic('chev')} ${grp} ${ic('chev')} <b>${m.t}</b></div>`; }
+function skeleton(){ return `<div class="skel" style="height:14px;width:180px;margin-bottom:12px"></div><div class="skel" style="height:30px;width:280px;margin-bottom:24px"></div><div class="kpis">${'<div class="card kpi"><div class="skel" style="height:14px;width:60%"></div><div class="skel" style="height:30px;width:40%;margin-top:18px"></div></div>'.repeat(4)}</div><div class="card" style="padding:18px">${'<div class="skel" style="height:18px;margin:14px 0"></div>'.repeat(6)}</div>`; }
+function head(title, sub, actions=''){ return `<div class="page-head"><div><h1>${title}</h1><p>${sub}</p></div><div class="head-actions">${actions}</div></div>`; }
+const restrictedNote = msg => `<div class="restricted">${ic('lock')}<span>${msg}</span></div>`;
+let reloading=false;
+async function reload(silent){
+  if(reloading) return; reloading=true; const b=$('#reloadBtn'); b?.classList.add('spin');
+  try{ await loadAll(); renderNotifs(); go(S.page,true); if(silent===false) toast('تم تحديث البيانات','success'); }
+  catch(e){ toast(errMsg(e),'error'); }
+  finally{ reloading=false; b?.classList.remove('spin'); }
+}
+
+/* cell helpers */
+const badge = (cls,label) => `<span class="badge b-${cls}">${label}</span>`;
+const prodCell = p => `<div class="cell-main"><div class="thumb ${C(p.cat).color||'c-brand'}">${esc((p.name||'—')[0])}</div><div><b>${esc(p.name)}</b><small>${esc(p.sku||'')}</small></div></div>`;
+const empCell = e => `<div class="cell-main"><div class="thumb ${toneOf(e.name||'—')}">${esc(initials(e.name||'—'))}</div><div><b>${esc(e.name)}</b><small>${esc(e.dept||'')}</small></div></div>`;
+const actBtn = (i,fn,title,cls='') => `<button class="act ${cls}" title="${title}" aria-label="${title}" onclick="${fn}">${ic(i)}</button>`;
+const fmtDT = d => { d = d instanceof Date ? d : toD(d); return d.toLocaleDateString('ar-EG-u-nu-latn',{day:'numeric',month:'short',year:'numeric'})+' · '+d.toLocaleTimeString('ar-EG-u-nu-latn',{hour:'2-digit',minute:'2-digit'}); };
+const dash = '<span style="color:var(--muted);font-size:12px">—</span>';
+
+/* =========================================================
+   VIEWS
+   ========================================================= */
+const VIEWS = {};
+const afterRender = {};
+
+function monthSeries(){
+  const months=[], keys=[]; const d=new Date(); d.setDate(1);
+  for(let i=6;i>=0;i--){ const x=new Date(d.getFullYear(), d.getMonth()-i, 1); keys.push(x.getFullYear()+'-'+x.getMonth()); months.push(x.toLocaleDateString('ar-EG-u-nu-latn',{month:'short'})); }
+  const s = t => keys.map(k=>DB.transactions.filter(x=>x.type===t && (x.date.getFullYear()+'-'+x.date.getMonth())===k).reduce((a,x)=>a+Math.abs(x.q),0));
+  return {months, inc:s('incoming'), iss:s('issue'), con:s('consumption')};
+}
+
+VIEWS.dashboard = () => {
+  const prods = DB.products.filter(p=>p.active);
+  const myHeld = mine()?DB.held.filter(h=>h.emp===S.user.id):DB.held;
+  const stock=prods.reduce((a,p)=>a+p.stock,0), held=myHeld.reduce((a,h)=>a+h.q,0);
+  const reqs = mine()?DB.requests.filter(r=>r.emp===S.user.id):DB.requests;
+  const pend = reqs.filter(r=>r.status==='pending').length;
+  const m0 = new Date(); m0.setDate(1); m0.setHours(0,0,0,0);
+  const shipM = DB.shipments.filter(s=>toD(s.date)>=m0).length;
+  const consL = mine()?DB.consumption.filter(c=>c.emp===S.user.id):DB.consumption;
+  const retL = mine()?DB.returns.filter(c=>c.emp===S.user.id):DB.returns;
+  const cons = consL.filter(c=>toD(c.date)>=m0).reduce((a,c)=>a+c.q,0), ret=retL.filter(c=>toD(c.date)>=m0).reduce((a,r)=>a+r.q,0);
+  const low = prods.filter(p=>p.stock<p.min).length;
+  const ms = monthSeries();
+  const kpi=(l,v,unit,i,c,sub,sp,feat='')=>`<div class="card kpi ${feat}"><div class="top"><span class="lbl">${l}</span><div class="ic ${c}">${ic(i)}</div></div><div class="val">${v} <small>${unit}</small></div><div style="margin-top:6px"><small style="color:${feat?'#a9c6bc':'var(--muted)'};font-size:12px">${sub}</small></div>${sp?spark(sp,feat?'#e2b867':'#147a66'):''}</div>`;
+  const byCat = DB.cats.map(c=>({c,v:prods.filter(p=>p.cat===c.id).reduce((a,p)=>a+p.stock,0)})).filter(b=>b.v>0); const mx=Math.max(1,...byCat.map(b=>b.v));
+  const lowList = prods.filter(p=>p.stock<p.min).slice(0,5);
+  const st = Object.keys(ST_CLS).map(k=>({k,v:reqs.filter(r=>r.status===k).length})).filter(s=>s.v);
+  const sc = {pending:'#b7791f',approved:'#2563a8',rejected:'#c2410c',cancelled:'#a8a59c',completed:'#1f8a5b',issued:'#1f8a5b',partially_issued:'#147a66',draft:'#a8a59c'};
+  const hr = new Date().getHours();
+  const hasChart = [...ms.inc,...ms.iss,...ms.con].some(v=>v>0);
+  return head(`${hr<12?'صباح الخير':'مساء الخير'}، ${esc((S.user.name||'').split(' ')[0])}`, 'ملخص عمليات المخزون من قاعدة البيانات', `${isMgr()?`<button class="btn btn-ghost" onclick="go('reports')">${ic('chart')}التقارير</button><button class="btn btn-primary" onclick="openShipmentForm()">${ic('truck')}تسجيل شحنة</button>`:`<button class="btn btn-primary" onclick="openRequestForm()">${ic('plus')}طلب سحب جديد</button>`}`)+
+  `<div class="kpis">
+    ${kpi('إجمالي المخزون الحالي',fmt(stock),'وحدة','box','c-gold','في جميع الأصناف النشطة',ms.inc,'feature')}
+    ${kpi('إجمالي المنتجات',fmt(prods.length),'صنف','tag','c-brand','أصناف نشطة')}
+    ${kpi(mine()?'عُهدتي الحالية':'عُهد لدى الموظفين',fmt(held),'وحدة','hand','c-info',mine()?'بحوزتك الآن':'بحوزة الموظفين الآن')}
+    ${kpi(mine()?'طلباتي قيد الانتظار':'طلبات قيد الانتظار',fmt(pend),'طلب','clip','c-warn','بانتظار المراجعة')}
+    ${isMgr()?kpi('شحنات هذا الشهر',fmt(shipM),'شحنة','truck','c-ok','تم استلامها',ms.inc):''}
+    ${kpi('استهلاك هذا الشهر',fmt(cons),'وحدة','flame','c-gold','منذ بداية الشهر',ms.con)}
+    ${kpi('مرتجعات هذا الشهر',fmt(ret),'وحدة','undo','c-brand','منذ بداية الشهر')}
+    ${isMgr()?kpi('منتجات منخفضة المخزون',fmt(low),'صنف','alert','c-bad',low?'تحتاج إجراء':'لا توجد تنبيهات'):''}
+  </div>
+  <div class="dash-grid">
+    <div class="card"><div class="card-h"><div><h3>حركة المخزون</h3><small>الوارد مقابل الصرف والاستهلاك — آخر 7 أشهر</small></div><div class="legend"><span><i style="background:#147a66"></i>وارد</span><span><i style="background:#b98a3e"></i>صرف</span><span><i style="background:#c2410c"></i>استهلاك</span></div></div><div class="card-b">${hasChart?areaChart([ms.inc,ms.iss,ms.con],ms.months,['#147a66','#b98a3e','#c2410c']):emptyState('لا توجد حركات بعد','ستظهر الحركات هنا فور تسجيلها.')}</div></div>
+    <div class="card"><div class="card-h"><div><h3>حالة طلبات السحب</h3><small>${mine()?'طلباتي':'جميع الطلبات'}</small></div></div><div class="card-b">${st.length?donut(st.map(s=>({l:STATUS[s.k]||s.k,v:s.v,c:sc[s.k]||'#a8a59c'}))):emptyState('لا توجد طلبات','')}</div></div>
+  </div>
+  <div class="dash-grid-3">
+    <div class="card"><div class="card-h"><h3>المخزون حسب الفئة</h3>${isMgr()?`<a class="btn btn-ghost btn-sm" onclick="go('categories')">عرض</a>`:''}</div><div class="card-b">${byCat.length?byCat.map(b=>`<div class="bar-row"><span class="nm">${esc(b.c.name)}</span><div class="bar-track"><div class="bar-fill" style="width:0" data-w="${b.v/mx*100}"></div></div><b>${fmt(b.v)}</b></div>`).join(''):emptyState('لا يوجد مخزون','')}</div></div>
+    <div class="card"><div class="card-h"><h3>تنبيهات انخفاض المخزون</h3>${badge('low',low+' صنف')}</div><div class="card-b" style="padding-top:6px">${lowList.length?lowList.map(p=>`<div class="list-item" style="cursor:pointer" onclick="viewProduct('${p.id}')"><div class="thumb c-bad">${ic('alert','style="width:16px"')}</div><div class="meta"><b>${esc(p.name)}</b><small>المتوفر ${fmt(p.stock)} · الحد الأدنى ${fmt(p.min)}</small></div></div>`).join(''):emptyState('كل شيء ممتاز','لا توجد منتجات تحت الحد الأدنى')}</div></div>
+    <div class="card"><div class="card-h"><h3>أحدث الطلبات</h3><a class="btn btn-ghost btn-sm" onclick="go('requests')">الكل</a></div><div class="card-b" style="padding-top:6px">${reqs.length?reqs.slice(0,5).map(r=>`<div class="list-item" style="cursor:pointer" onclick="viewRequest('${r.id}')"><div class="thumb ${toneOf(E(r.emp).name)}">${esc(initials(E(r.emp).name))}</div><div class="meta"><b>${esc(E(r.emp).name)}</b><small><span class="mono">${shortId(r.id)}</span> · ${r.items.length} أصناف</small></div>${stBadge(r.status)}</div>`).join(''):emptyState('لا توجد طلبات','')}</div></div>
+  </div>`;
+};
+afterRender.dashboard = () => requestAnimationFrame(()=>document.querySelectorAll('.bar-fill[data-w]').forEach(b=>b.style.width=b.dataset.w+'%'));
+
+VIEWS.inventory = () => head('المخزون','الكميات المتوفرة والمحجوزة ولدى الموظفين لكل صنف', isMgr()?`<button class="btn btn-ghost" onclick="openAdjForm()">${ic('sliders')}تسوية</button><button class="btn btn-primary" onclick="openShipmentForm()">${ic('plus')}استلام مخزون</button>`:'') +
+  (mine()?restrictedNote('عرض للقراءة فقط — يمكنك طلب سحب المنتجات من خلال صفحة طلبات السحب.'):'') +
+  table({key:'inv',rows:()=>DB.products.filter(p=>p.active),
+    cols:[{h:'المنتج',r:prodCell,sort:p=>p.name},{h:'الفئة',r:p=>esc(C(p.cat).name)},
+      {h:'المتوفر',r:p=>{const l=stockLevel(p);const c={low:'var(--bad)',mid:'var(--warn)',ok:'var(--ok)'}[l];return `<span class="num">${fmt(p.stock)}</span> <small style="color:var(--muted)">${esc(p.unit)}</small><span class="stock-bar"><i style="width:${Math.min(100,p.stock/Math.max(1,p.min*4)*100)}%;background:${c}"></i></span>`},sort:p=>p.stock},
+      {h:'محجوز',r:p=>`<span class="num">${fmt(p.reserved)}</span>`,sort:p=>p.reserved},
+      {h:'لدى الموظفين',r:p=>`<span class="num">${fmt(p.held)}</span>`,sort:p=>p.held},{h:'الحد الأدنى',r:p=>fmt(p.min),sort:p=>p.min},{h:'الحالة',r:p=>badge(stockLevel(p),levelLabel[stockLevel(p)])}],
+    searchKeys:p=>p.name+p.sku, tabs:{opts:{low:'منخفض',mid:'متوسط',ok:'جيد'},fn:(p,v)=>stockLevel(p)===v},
+    filters:[{k:'cat',label:'كل الفئات',opts:Object.fromEntries(DB.cats.map(c=>[c.id,c.name])),fn:(p,v)=>p.cat==v}],
+    actions:p=>actBtn('eye',`viewProduct('${p.id}')`,'عرض')+(isMgr()?actBtn('sliders',`openAdjForm('${p.id}')`,'تسوية'):actBtn('clip',`openRequestForm('${p.id}')`,'طلب سحب'))});
+
+VIEWS.products = () => head('المنتجات','إدارة كتالوج الأصناف والحدود الدنيا', `<button class="btn btn-primary" onclick="openProductForm()">${ic('plus')}منتج جديد</button>`) +
+  table({key:'prod',rows:()=>DB.products,
+    cols:[{h:'المنتج',r:prodCell,sort:p=>p.name},{h:'رمز الصنف',r:p=>`<span class="mono">${esc(p.sku)}</span>`,sort:p=>p.sku},{h:'الفئة',r:p=>esc(C(p.cat).name)},{h:'الوحدة',r:p=>esc(p.unit)},{h:'رمز QR',r:p=>p.qr?`<span class="mono">${esc(p.qr)}</span>`:dash},{h:'الحد الأدنى',r:p=>fmt(p.min),sort:p=>p.min},{h:'الحالة',r:p=>p.active?badge('active','نشط'):badge('inactive','غير نشط')}],
+    searchKeys:p=>p.name+p.sku+p.qr, tabs:{opts:{1:'نشط',0:'غير نشط'},fn:(p,v)=>String(+p.active)===v},
+    filters:[{k:'cat',label:'كل الفئات',opts:Object.fromEntries(DB.cats.map(c=>[c.id,c.name])),fn:(p,v)=>p.cat==v}],
+    actions:p=>actBtn('eye',`viewProduct('${p.id}')`,'عرض')+actBtn('edit',`openProductForm('${p.id}')`,'تعديل')+actBtn(p.active?'lock':'check',`toggleProduct('${p.id}')`,p.active?'إيقاف':'تفعيل',p.active?'bad':'ok')});
+
+VIEWS.categories = () => head('الفئات','تنظيم المنتجات في مجموعات منطقية', `<button class="btn btn-primary" onclick="openCategoryForm()">${ic('plus')}فئة جديدة</button>`) +
+  (DB.cats.length?`<div class="cat-grid">${DB.cats.map(c=>{const ps=DB.products.filter(p=>p.cat===c.id);const st=ps.reduce((a,p)=>a+p.stock,0);const low=ps.filter(p=>p.active&&p.stock<p.min).length;return `<div class="card cat-card"><div class="top"><div class="thumb ${c.color}" style="width:44px;height:44px;border-radius:13px">${ic('layers')}</div><div>${actBtn('edit',`openCategoryForm('${c.id}')`,'تعديل')}${S.role==='admin'?actBtn('trash',`confirmDelete('category','${c.id}')`,'حذف','bad'):''}</div></div><div><h3 style="font-size:16px">${esc(c.name)}</h3><p style="color:var(--muted);font-size:12.5px">${c.active?'فئة نشطة':'فئة غير نشطة'}</p></div><div style="display:flex;gap:18px;border-top:1px dashed var(--line);padding-top:12px;font-size:12.5px;color:var(--muted)"><div><b style="display:block;color:var(--ink);font-size:17px">${ps.length}</b>منتج</div><div><b style="display:block;color:var(--ink);font-size:17px">${fmt(st)}</b>وحدة</div><div><b style="display:block;color:${low?'var(--bad)':'var(--ink)'};font-size:17px">${low}</b>منخفض</div></div></div>`}).join('')}</div>`:`<div class="card">${emptyState('لا توجد فئات','ابدأ بإنشاء أول فئة لتنظيم منتجاتك.',`<button class="btn btn-primary" onclick="openCategoryForm()">${ic('plus')}فئة جديدة</button>`)}</div>`);
+
+const sumItems = (r,k) => r.items.reduce((a,i)=>a+(+i[k]||0),0);
+VIEWS.requests = () => {
+  const m = mine();
+  return head(m?'طلباتي':'طلبات السحب', m?'تتبّع طلبات سحب المواد الخاصة بك':'مراجعة طلبات سحب المواد والموافقة عليها وصرفها', (!m||S.user.id)?`<button class="btn btn-primary" onclick="openRequestForm()">${ic('plus')}طلب سحب جديد</button>`:'') +
+  (m?restrictedNote(S.user.id?'تظهر هنا طلباتك فقط. الموافقة والصرف متاحة للمشرفين ومدير النظام.':'حسابك غير مرتبط بسجل موظف — تواصل مع مدير النظام.'):'')+
+  table({key:'req',rows:()=>m?DB.requests.filter(r=>r.emp===S.user.id):DB.requests,
+    cols:[{h:'رقم الطلب',r:r=>`<span class="mono">${shortId(r.id)}</span>`,sort:r=>r.id},{h:'الموظف',r:r=>empCell(E(r.emp)),sort:r=>E(r.emp).name},{h:'التاريخ',r:r=>dOnly(r.date),sort:r=>r.date||''},{h:'الأصناف',r:r=>`${r.items.length} أصناف`},{h:'مطلوب',r:r=>fmt(sumItems(r,'q')),sort:r=>sumItems(r,'q')},{h:'موافق',r:r=>fmt(sumItems(r,'approved'))},{h:'مصروف',r:r=>fmt(sumItems(r,'issued'))},{h:'متبقٍ',r:r=>fmt(sumItems(r,'remaining'))},{h:'الحالة',r:r=>stBadge(r.status)}],
+    searchKeys:r=>shortId(r.id)+r.id+E(r.emp).name+r.note+r.items.map(i=>P(i.p).name).join(' '), tabs:{opts:{pending:'قيد الانتظار',approved:'موافق عليه',issued:'تم الصرف',rejected:'مرفوض',cancelled:'ملغي'},fn:(r,v)=>v==='issued'?['issued','completed','partially_issued'].includes(r.status):r.status===v},
+    actions:r=>actBtn('eye',`viewRequest('${r.id}')`,'عرض')+reqActions(r,true)});
+};
+function reqActions(r,icons){
+  const b=(i,fn,t,c,btn)=>icons?actBtn(i,fn,t,c):`<button class="btn ${btn}" onclick="${fn}">${ic(i)}${t}</button>`;
+  let h='';
+  if(isMgr()&&r.status==='pending') h+=b('check',`approveRequest('${r.id}')`,'موافقة','ok','btn-primary')+b('x',`rejectRequest('${r.id}')`,'رفض','bad','btn-danger');
+  if(isMgr()&&['approved','partially_issued'].includes(r.status)) h+=b('box',`issueRequest('${r.id}')`,'صرف','ok','btn-primary');
+  if(mine()&&r.status==='pending'&&r.emp===S.user.id) h+=b('x',`cancelRequest('${r.id}')`,'إلغاء','bad','btn-danger');
+  return h;
+}
+
+VIEWS.held = () => {
+  const m=mine();
+  const rows=()=>m?DB.held.filter(h=>h.emp===S.user.id):DB.held;
+  const byEmp = {}; DB.held.forEach(h=>byEmp[h.emp]=(byEmp[h.emp]||0)+h.q);
+  const top = Object.entries(byEmp).sort((a,b)=>b[1]-a[1]).slice(0,4);
+  return head(m?'عُهدتي':'عُهد الموظفين','المواد المصروفة والموجودة حالياً بحوزة الموظفين', `<button class="btn btn-ghost" onclick="openReturnForm()">${ic('undo')}تسجيل مرتجع</button><button class="btn btn-ghost" onclick="openConsumptionForm()">${ic('flame')}تسجيل استهلاك</button>`) +
+  (!m&&top.length?`<div class="kpis">${top.map(([id,q])=>`<div class="card kpi"><div class="cell-main"><div class="thumb ${toneOf(E(id).name)}">${esc(initials(E(id).name))}</div><div><b>${esc(E(id).name)}</b><small style="color:var(--muted)">${esc(E(id).dept)}</small></div></div><div class="val">${fmt(q)} <small>وحدة بالعهدة</small></div></div>`).join('')}</div>`:'')+
+  table({key:'held',rows,cols:[{h:'الموظف',r:h=>empCell(E(h.emp)),sort:h=>E(h.emp).name},{h:'المنتج',r:h=>prodCell(P(h.p)),sort:h=>P(h.p).name},{h:'الكمية',r:h=>`<span class="num">${fmt(h.q)}</span> ${esc(P(h.p).unit)}`,sort:h=>h.q},{h:'آخر تحديث',r:h=>dOnly(h.since),sort:h=>h.since||''},{h:'بواسطة',r:h=>esc(U(h.by))}],
+    searchKeys:h=>E(h.emp).name+P(h.p).name, filters:m?[]:[{k:'emp',label:'كل الموظفين',opts:Object.fromEntries(DB.employees.map(e=>[e.id,e.name])),fn:(h,v)=>h.emp==v}],
+    actions:h=>actBtn('undo',`openReturnForm('${h.p}','${h.emp}')`,'إرجاع')+actBtn('flame',`openConsumptionForm('${h.p}','${h.emp}')`,'تسجيل استهلاك')});
+};
+
+VIEWS.employees = () => head('الموظفون','سجلات الموظفين والأقسام والعهد', S.role==='admin'?`<button class="btn btn-primary" onclick="openEmployeeForm()">${ic('plus')}موظف جديد</button>`:'') +
+  table({key:'emp',rows:()=>DB.employees,cols:[{h:'الموظف',r:e=>empCell(e),sort:e=>e.name},{h:'القسم',r:e=>esc(e.dept)||dash,sort:e=>e.dept},{h:'الجوال',r:e=>e.phone?`<span class="mono" dir="ltr">${esc(e.phone)}</span>`:dash},{h:'بالعهدة',r:e=>`<span class="num">${fmt(DB.held.filter(h=>h.emp===e.id).reduce((a,h)=>a+h.q,0))}</span> وحدة`,sort:e=>DB.held.filter(h=>h.emp===e.id).reduce((a,h)=>a+h.q,0)},{h:'تاريخ الإضافة',r:e=>dOnly(e.created),sort:e=>e.created||''},{h:'الحالة',r:e=>e.active?badge('active','نشط'):badge('inactive','معطّل')}],
+    searchKeys:e=>e.name+e.dept+e.phone, tabs:{opts:{1:'نشط',0:'معطّل'},fn:(e,v)=>String(+e.active)===v}, filters:[{k:'d',label:'كل الأقسام',opts:Object.fromEntries([...new Set(DB.employees.map(e=>e.dept).filter(Boolean))].map(d=>[d,d])),fn:(e,v)=>e.dept===v}],
+    actions:e=>actBtn('hand',`viewEmployee('${e.id}')`,'العهد')+(S.role==='admin'?actBtn('edit',`openEmployeeForm('${e.id}')`,'تعديل')+actBtn(e.active?'lock':'check',`toggleEmp('${e.id}')`,e.active?'تعطيل':'تفعيل',e.active?'bad':'ok'):'')});
+
+VIEWS.shipments = () => head('الشحنات الواردة','استلام شحنات الموردين وإضافتها للمخزون', `<button class="btn btn-primary" onclick="openShipmentForm()">${ic('plus')}استلام شحنة</button>`) +
+  table({key:'ship',rows:()=>DB.shipments,cols:[{h:'رقم الشحنة',r:s=>s.no?`<span class="mono">${esc(s.no)}</span>`:dash,sort:s=>s.no},{h:'المورد',r:s=>`<div class="cell-main"><div class="thumb c-info">${ic('truck','style="width:16px"')}</div><div><b>${esc(s.supplier)}</b></div></div>`,sort:s=>s.supplier},{h:'المنتج',r:s=>prodCell(P(s.p)),sort:s=>P(s.p).name},{h:'الكمية',r:s=>`<span class="num pos">+${fmt(s.q)}</span> ${esc(P(s.p).unit)}`,sort:s=>s.q},{h:'تاريخ الاستلام',r:s=>fmtDT(s.date),sort:s=>s.date||''},{h:'المستلم',r:s=>esc(U(s.receivedBy))}],
+    searchKeys:s=>s.no+s.supplier+P(s.p).name+s.note,
+    actions:s=>actBtn('eye',`viewShipment('${s.id}')`,'عرض')});
+
+const listView = (key,rowsAll,sign,cls) => table({key,rows:()=>mine()?rowsAll().filter(c=>c.emp===S.user.id):rowsAll(),cols:[{h:'المنتج',r:c=>prodCell(P(c.p)),sort:c=>P(c.p).name},{h:'الكمية',r:c=>`<span class="num ${cls}">${sign}${fmt(c.q)}</span> ${esc(P(c.p).unit)}`,sort:c=>c.q},{h:'الموظف',r:c=>esc(E(c.emp).name),sort:c=>E(c.emp).name},{h:'القسم',r:c=>esc(E(c.emp).dept)||dash},{h:'الطلب',r:c=>c.req?`<a class="mono" style="cursor:pointer;color:var(--brand)" onclick="viewRequest('${c.req}')">${shortId(c.req)}</a>`:dash},{h:'التاريخ',r:c=>fmtDT(c.date),sort:c=>c.date||''},{h:'سجّله',r:c=>esc(U(c.by))},{h:'ملاحظات',r:c=>c.note?`<span style="color:var(--muted)">${esc(c.note)}</span>`:dash}],
+    searchKeys:c=>P(c.p).name+E(c.emp).name+c.note, filters:mine()?[]:[{k:'emp',label:'كل الموظفين',opts:Object.fromEntries(DB.employees.map(e=>[e.id,e.name])),fn:(c,v)=>c.emp==v},{k:'d',label:'كل الأقسام',opts:Object.fromEntries([...new Set(DB.employees.map(e=>e.dept).filter(Boolean))].map(d=>[d,d])),fn:(c,v)=>E(c.emp).dept===v}]});
+
+VIEWS.consumption = () => head('الاستهلاك','تسجيل ومتابعة المواد المستهلكة من عهد الموظفين', `<button class="btn btn-primary" onclick="openConsumptionForm()">${ic('plus')}تسجيل استهلاك</button>`) + listView('cons',()=>DB.consumption,'−','neg');
+VIEWS.returns = () => head('المرتجعات','إرجاع المواد من عهد الموظفين إلى المستودع', `<button class="btn btn-primary" onclick="openReturnForm()">${ic('plus')}تسجيل مرتجع</button>`) + listView('ret',()=>DB.returns,'+','pos');
+
+VIEWS.adjustments = () => head('تسويات المخزون','تصحيح الكميات بناءً على الجرد الفعلي أو التلف', `<button class="btn btn-primary" onclick="openAdjForm()">${ic('plus')}تسوية جديدة</button>`) +
+  table({key:'adj',rows:()=>DB.adjustments,cols:[{h:'المنتج',r:a=>prodCell(P(a.p)),sort:a=>P(a.p).name},{h:'النوع',r:a=>isAdd(a.type)?badge('adjustment_add','بالزيادة'):badge('adjustment_subtract','بالنقص')},{h:'الكمية',r:a=>isAdd(a.type)?`<span class="num pos">+${fmt(a.q)}</span>`:`<span class="num neg">−${fmt(a.q)}</span>`,sort:a=>a.q},{h:'السبب',r:a=>esc(a.reason)||dash},{h:'بواسطة',r:a=>esc(U(a.by))},{h:'التاريخ',r:a=>fmtDT(a.date),sort:a=>a.date||''}],
+    searchKeys:a=>P(a.p).name+a.reason, tabs:{opts:{add:'بالزيادة',sub:'بالنقص'},fn:(a,v)=>v==='add'?isAdd(a.type):!isAdd(a.type)}});
+
+VIEWS.transactions = () => head('حركات المخزون','السجل الكامل لكل حركة دخول وخروج للمخزون', `<button class="btn btn-ghost" onclick="window.print()">${ic('print')}طباعة</button>`) +
+  table({key:'tx',per:15,rows:()=>DB.transactions,cols:[{h:'التاريخ والوقت',r:t=>fmtDT(t.date),sort:t=>t.date},{h:'النوع',r:t=>txBadge(t.type)},{h:'المنتج',r:t=>prodCell(P(t.p)),sort:t=>P(t.p).name},{h:'الكمية',r:t=>{const neg=NEG_TX.includes(t.type)||t.q<0;return `<span class="num ${neg?'neg':'pos'}" dir="ltr">${neg?'−':'+'}${fmt(Math.abs(t.q))}</span>`},sort:t=>t.q},{h:'قبل',r:t=>t.before!=null?fmt(t.before):dash},{h:'بعد',r:t=>t.after!=null?fmt(t.after):dash},{h:'الموظف',r:t=>t.emp?esc(E(t.emp).name):dash},{h:'المنفّذ',r:t=>esc(U(t.by))},{h:'ملاحظات',r:t=>t.note?`<span style="color:var(--muted)">${esc(t.note)}</span>`:dash}],
+    searchKeys:t=>P(t.p).name+(TXN[t.type]||t.type)+U(t.by)+E(t.emp).name+t.note, filters:[{k:'type',label:'كل الأنواع',opts:Object.fromEntries([...new Set(DB.transactions.map(t=>t.type))].map(t=>[t,TXN[t]||t])),fn:(t,v)=>t.type===v},{k:'per',label:'كل الفترات',opts:{7:'آخر 7 أيام',30:'آخر 30 يوم',90:'آخر 90 يوم'},fn:(t,v)=>t.date>daysAgo(+v)}]});
+
+const fmtDetails = d => { if(d==null) return dash; if(typeof d!=='object') return esc(d); const e=Object.entries(d); return e.length?e.map(([k,v])=>`<span style="color:var(--muted)">${esc(k)}:</span> ${esc(typeof v==='object'?JSON.stringify(v):v)}`).join(' · '):dash; };
+VIEWS.audit = () => head('سجل التدقيق','تتبّع جميع الإجراءات التي يقوم بها المستخدمون في النظام (للقراءة فقط)', `<button class="btn btn-ghost" onclick="exportCSV('aud')">${ic('down')}تصدير السجل</button>`) +
+  table({key:'aud',per:15,rows:()=>DB.audit,cols:[{h:'الوقت',r:a=>fmtDT(a.date),sort:a=>a.date},{h:'المستخدم',r:a=>esc(U(a.user))},{h:'الإجراء',r:a=>`<span class="badge b-approved">${esc(a.act)}</span>`},{h:'الكيان',r:a=>esc(a.entity)},{h:'المعرّف',r:a=>a.entityId?`<span class="mono">${shortId(a.entityId)}</span>`:dash},{h:'التفاصيل',r:a=>`<div style="max-width:360px;white-space:normal;font-size:12.5px">${fmtDetails(a.details)}</div>`}],
+    searchKeys:a=>a.act+a.entity+U(a.user)+JSON.stringify(a.details||''), filters:[{k:'a',label:'كل الإجراءات',opts:Object.fromEntries([...new Set(DB.audit.map(a=>a.act))].map(x=>[x,x])),fn:(a,v)=>a.act===v},{k:'e',label:'كل الكيانات',opts:Object.fromEntries([...new Set(DB.audit.map(a=>a.entity))].map(x=>[x,x])),fn:(a,v)=>a.entity===v},{k:'u',label:'كل المستخدمين',opts:Object.fromEntries([...new Set(DB.audit.map(a=>a.user).filter(Boolean))].map(x=>[x,U(x)])),fn:(a,v)=>a.user===v}]});
+
+const REPORTS = {
+  inv:['تقرير المخزون الحالي','الكميات المتوفرة لكل صنف','box','c-brand',()=>DB.products.map(p=>({'رمز الصنف':p.sku,'المنتج':p.name,'الفئة':C(p.cat).name,'الوحدة':p.unit,'المتوفر':p.stock,'محجوز':p.reserved,'لدى الموظفين':p.held,'الحد الأدنى':p.min}))],
+  tx:['تقرير الحركات','جميع حركات المخزون','swap','c-info',()=>DB.transactions.map(t=>({'التاريخ':t.date.toISOString(),'النوع':TXN[t.type]||t.type,'المنتج':P(t.p).name,'الكمية':t.q,'قبل':t.before,'بعد':t.after,'الموظف':t.emp?E(t.emp).name:'','المنفذ':U(t.by),'ملاحظات':t.note}))],
+  cons:['تقرير الاستهلاك','الاستهلاك حسب الموظف والقسم','flame','c-gold',()=>DB.consumption.map(c=>({'التاريخ':c.date,'المنتج':P(c.p).name,'الكمية':c.q,'الموظف':E(c.emp).name,'القسم':E(c.emp).dept,'ملاحظات':c.note}))],
+  held:['تقرير عُهد الموظفين','المواد بحوزة كل موظف','hand','c-ok',()=>DB.held.map(h=>({'الموظف':E(h.emp).name,'القسم':E(h.emp).dept,'المنتج':P(h.p).name,'الكمية':h.q,'آخر تحديث':h.since}))],
+  low:['تقرير المنخفض','الأصناف تحت الحد الأدنى','alert','c-bad',()=>DB.products.filter(p=>p.active&&p.stock<p.min).map(p=>({'رمز الصنف':p.sku,'المنتج':p.name,'المتوفر':p.stock,'الحد الأدنى':p.min}))],
+  ship:['تقرير الشحنات','الشحنات الواردة','truck','c-info',()=>DB.shipments.map(s=>({'رقم الشحنة':s.no,'المورد':s.supplier,'المنتج':P(s.p).name,'الكمية':s.q,'التاريخ':s.date,'المستلم':U(s.receivedBy)}))],
+  ret:['تقرير المرتجعات','المرتجعات من الموظفين','undo','c-brand',()=>DB.returns.map(r=>({'التاريخ':r.date,'المنتج':P(r.p).name,'الكمية':r.q,'الموظف':E(r.emp).name,'ملاحظات':r.note}))],
+  adj:['تقرير التسويات','فروقات الجرد والتسويات','sliders','c-warn',()=>DB.adjustments.map(a=>({'التاريخ':a.date,'المنتج':P(a.p).name,'النوع':isAdd(a.type)?'زيادة':'نقص','الكمية':a.q,'السبب':a.reason,'بواسطة':U(a.by)}))],
+};
+function downloadRows(name, rows){
+  if(!rows.length){ toast('لا توجد بيانات للتصدير','warning'); return; }
+  const cols=Object.keys(rows[0]); const cell=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+  const csv='\ufeff'+[cols.map(cell).join(','),...rows.map(r=>cols.map(c=>cell(r[c])).join(','))].join('\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})); a.download=name+'.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  toast('تم تصدير '+fmt(rows.length)+' سجل بنجاح','success');
+}
+VIEWS.reports = () => {
+  const byDept={}; DB.consumption.forEach(c=>{const d=E(c.emp).dept||'غير محدد'; byDept[d]=(byDept[d]||0)+c.q}); const mx=Math.max(1,...Object.values(byDept));
+  const ms=monthSeries(); const has=[...ms.inc,...ms.iss].some(v=>v>0);
+  return head('التقارير','تقارير مبنية على بيانات النظام الفعلية — قابلة للتصدير إلى Excel (CSV)') +
+  `<div class="cat-grid" style="margin-bottom:16px">${Object.entries(REPORTS).map(([k,r])=>`<div class="card report-card" onclick="downloadRows('${k}',REPORTS.${k}[4]())"><div class="ic ${r[3]}">${ic(r[2])}</div><h4>${r[0]}</h4><p>${r[1]}</p><div style="display:flex;gap:6px;margin-top:14px"><span class="btn btn-ghost btn-sm">${ic('down')}Excel (CSV)</span></div></div>`).join('')}</div>
+  <div class="dash-grid"><div class="card"><div class="card-h"><h3>الوارد مقابل الصرف</h3><small>آخر 7 أشهر (وحدات)</small></div><div class="card-b">${has?areaChart([ms.inc,ms.iss],ms.months,['#0f5c4d','#b98a3e']):emptyState('لا توجد حركات بعد','')}</div></div>
+  <div class="card"><div class="card-h"><h3>الاستهلاك حسب القسم</h3></div><div class="card-b">${Object.keys(byDept).length?Object.entries(byDept).sort((a,b)=>b[1]-a[1]).map(([d,v])=>`<div class="bar-row"><span class="nm">${esc(d)}</span><div class="bar-track"><div class="bar-fill" style="width:0;background:var(--gold)" data-w="${v/mx*100}"></div></div><b>${fmt(v)}</b></div>`).join(''):emptyState('لا يوجد استهلاك بعد','')}</div></div></div>`;
+};
+afterRender.reports = afterRender.dashboard;
+
+let setTab='profile';
+VIEWS.settings = () => {
+  const tabs=[['profile','الملف الشخصي','user'],['security','الأمان','lock']];
+  if(!tabs.find(t=>t[0]===setTab)) setTab='profile';
+  const emp = S.user.id?E(S.user.id):null;
+  const panes={
+    profile:`<div class="card-h"><h3>الملف الشخصي</h3></div><div class="card-b"><div style="display:flex;align-items:center;gap:16px;margin-bottom:22px"><div class="avatar" style="width:64px;height:64px;font-size:22px;border-radius:18px">${esc(initials(S.user.name||'؟'))}</div><div><b style="font-size:16px">${esc(S.user.name)}</b><div style="color:var(--muted)">${ROLES[S.role]}${emp?.dept?' · '+esc(emp.dept):''}</div></div></div>${[['البريد الإلكتروني',`<span dir="ltr">${esc(S.email)}</span>`],['الدور',ROLES[S.role]],['سجل الموظف',emp?esc(emp.name):'غير مرتبط'],['الجوال',emp?.phone?`<span dir="ltr">${esc(emp.phone)}</span>`:'—'],['حالة الحساب',badge('active','نشط')]].map(r=>`<div class="detail-row"><span>${r[0]}</span><b>${r[1]}</b></div>`).join('')}<p style="color:var(--muted);font-size:12.5px;margin-top:14px">لتعديل بيانات حسابك أو دورك تواصل مع مدير النظام.</p></div>`,
+    security:`<div class="card-h"><h3>الأمان</h3></div><div class="card-b"><form id="pwForm" novalidate><div class="grid-2"><div class="field"><label>كلمة المرور الجديدة</label><input class="input" type="password" id="pw1" autocomplete="new-password"><span class="err-msg hidden"></span></div><div class="field"><label>تأكيد كلمة المرور</label><input class="input" type="password" id="pw2" autocomplete="new-password"><span class="err-msg hidden"></span></div></div><button class="btn btn-primary" id="pwBtn">تحديث كلمة المرور</button></form><div class="set-row" style="margin-top:18px"><div><b style="font-weight:500">تسجيل الخروج من جميع الأجهزة</b><small>إنهاء كل الجلسات النشطة لحسابك</small></div><button class="btn btn-ghost btn-sm" onclick="confirmDialog({title:'تسجيل الخروج من جميع الأجهزة؟',msg:'سيتم إنهاء جميع جلساتك بما فيها الحالية.',ok:'تأكيد',danger:true,fn:()=>doSignOut('global')})">إنهاء الكل</button></div></div>`};
+  return head('الإعدادات','إدارة حسابك')+`<div class="settings-grid"><div class="settings-nav">${tabs.map(t=>`<a class="${setTab===t[0]?'on':''}" onclick="setTab='${t[0]}';go('settings')">${ic(t[2])}${t[1]}</a>`).join('')}</div><div class="card">${panes[setTab]}</div></div>`;
+};
+afterRender.settings = () => { const f=$('#pwForm'); if(!f) return; f.onsubmit=async e=>{ e.preventDefault();
+  const a=$('#pw1'), b=$('#pw2'); const bad1=a.value.length<8, bad2=a.value!==b.value;
+  a.classList.toggle('err',bad1); a.nextElementSibling.textContent='8 أحرف على الأقل'; a.nextElementSibling.classList.toggle('hidden',!bad1);
+  b.classList.toggle('err',!bad1&&bad2); b.nextElementSibling.textContent='كلمتا المرور غير متطابقتين'; b.nextElementSibling.classList.toggle('hidden',bad1||!bad2);
+  if(bad1||bad2) return; const btn=$('#pwBtn'); const t=btn.innerHTML; btn.disabled=true; btn.innerHTML='<span class="spinner"></span>جارٍ الحفظ';
+  try{ await q(sb.auth.updateUser({password:a.value})); a.value=b.value=''; toast('تم تحديث كلمة المرور بنجاح','success'); }catch(err){ toast(errMsg(err),'error'); } finally{ btn.disabled=false; btn.innerHTML=t; } }; };
+
+/* =========================================================
+   FORMS (async, keep modal open on error)
+   ========================================================= */
+function submitForm(fields,onOk,okMsg,validate){
+  const fd=new FormData($('#mf')); let ok=true; const data={};
+  fields.forEach(f=>{ const v=(fd.get(f.n)??'').toString().trim(); data[f.n]=v; const el=$(`#mf [name="${f.n}"]`); const msg=el.nextElementSibling;
+    let err=''; if(f.req&&!v) err='هذا الحقل مطلوب';
+    else if(f.type==='number'&&v!==''&&(isNaN(+v)||+v<0)) err='أدخل رقماً صحيحاً';
+    else if(f.type==='number'&&f.req&&f.pos!==false&&+v<=0) err='يجب أن تكون القيمة أكبر من صفر';
+    else if(f.max!=null&&v.length>f.max) err='الحد الأقصى '+f.max+' حرف';
+    el.classList.toggle('err',!!err); msg.textContent=err||'هذا الحقل مطلوب'; msg.classList.toggle('hidden',!err); if(err) ok=false; });
+  if(ok&&validate){ const v=validate(data); if(v){ Object.entries(v).forEach(([n,m])=>{const el=$(`#mf [name="${n}"]`); if(el){el.classList.add('err');el.nextElementSibling.textContent=m;el.nextElementSibling.classList.remove('hidden');}}); ok=false; } }
+  if(!ok){ toast('يرجى تصحيح الحقول المحددة','error'); return; }
+  const b=$('#mfSave'); const label=b.innerHTML; b.disabled=true; b.innerHTML='<span class="spinner"></span>جارٍ الحفظ';
+  Promise.resolve().then(()=>onOk(data)).then(async()=>{ closeModal(); toast(okMsg,'success'); await reload(); })
+    .catch(e=>{ console.warn('[save]',e?.message); b.disabled=false; b.innerHTML=label; toast(errMsg(e),'error'); });
+}
+function formModal(title,fields,onOk,okMsg,saveLabel='حفظ',validate){
+  window.__ff=()=>submitForm(fields,onOk,okMsg,validate);
+  modal({title,body:form(fields),footer:`<button class="btn btn-primary" id="mfSave" onclick="__ff()">${saveLabel}</button><button class="btn btn-ghost" onclick="closeModal()">إلغاء</button>`});
+  $('#mf').onsubmit=e=>{e.preventDefault();__ff();};
+}
+async function run(fn, okMsg, type='success'){
+  try{ const r=await fn(); if(okMsg) toast(okMsg,type); await reload(); return r; }
+  catch(e){ console.warn('[action]',e?.message); toast(errMsg(e),'error'); }
+}
+const prodOpts = () => Object.fromEntries(DB.products.filter(p=>p.active).map(p=>[p.id,`${p.name} (${fmt(p.stock)} ${p.unit})`]));
+const empOpts = () => Object.fromEntries(DB.employees.filter(e=>e.active).map(e=>[e.id,e.name]));
+const heldRow = (emp,p) => DB.held.find(h=>h.emp===emp && h.p===p);
+const heldOpts = emp => Object.fromEntries(DB.held.filter(h=>emp&&h.emp===emp).map(h=>[h.p,`${P(h.p).name} (بالعهدة ${fmt(h.q)} ${P(h.p).unit})`]));
+const reqOpts = emp => Object.fromEntries(DB.requests.filter(r=>emp&&r.emp===emp&&['issued','completed','partially_issued','approved'].includes(r.status)).map(r=>[r.id,`${shortId(r.id)} · ${dOnly(r.date)}`]));
+function linkEmpProduct(){
+  const es=$('#mf [name="emp"]'), ps=$('#mf [name="p"]'), rs=$('#mf [name="req"]'); if(!es||!ps) return;
+  const fill=()=>{ const cur=ps.value; const o=heldOpts(es.value);
+    ps.innerHTML='<option value="">'+(es.value?(Object.keys(o).length?'اختر...':'لا توجد عهدة لدى هذا الموظف'):'اختر الموظف أولاً')+'</option>'+Object.entries(o).map(([v,l])=>`<option value="${v}" ${v===cur?'selected':''}>${esc(l)}</option>`).join('');
+    if(rs){ const rc=rs.value; rs.innerHTML='<option value="">بدون طلب</option>'+Object.entries(reqOpts(es.value)).map(([v,l])=>`<option value="${v}" ${v===rc?'selected':''}>${esc(l)}</option>`).join(''); } };
+  es.addEventListener('change',fill); fill();
+}
+
+function openProductForm(id){ const p=id?P(id):{}; const f=[{n:'name',l:'اسم المنتج',req:1,val:p.name,full:1,max:200},{n:'sku',l:'رمز الصنف',req:1,val:p.sku,max:60},{n:'cat',l:'الفئة',type:'select',req:1,opts:Object.fromEntries(DB.cats.filter(c=>c.active||c.id===p.cat).map(c=>[c.id,c.name])),val:p.cat},{n:'unit',l:'وحدة القياس',req:1,val:p.unit,max:40},{n:'min',l:'الحد الأدنى للمخزون',type:'number',req:1,pos:false,val:p.min??0},{n:'qr',l:'رمز QR (اختياري)',val:p.qr,max:200}];
+  formModal(id?'تعديل المنتج':'إضافة منتج جديد',f,async d=>{
+    const row={product_code:d.sku,name:d.name,category_id:d.cat,unit:d.unit,minimum_stock:+d.min,qr_code:d.qr||null};
+    if(id){ await q(sb.from('products').update(row).eq('id',id)); await audit('update','product',id,{name:d.name}); }
+    else { const r=await q(sb.from('products').insert({...row,status:'active'}).select('id').single()); await audit('create','product',r?.id,{name:d.name}); }
+  }, id?'تم تحديث المنتج':'تمت إضافة المنتج — استلم شحنة لإضافة رصيد'); }
+function toggleProduct(id){ const p=P(id); confirmDialog({title:p.active?`إيقاف "${esc(p.name)}"؟`:`تفعيل "${esc(p.name)}"؟`,msg:p.active?'لن يظهر المنتج في نماذج الطلب والاستلام.':'سيظهر المنتج مجدداً في النماذج.',danger:p.active,ok:p.active?'إيقاف':'تفعيل',fn:()=>run(async()=>{ const st=p.active?'inactive':'active'; await q(sb.from('products').update({status:st}).eq('id',id)); await audit('update','product',id,{status:st}); },'تم تحديث حالة المنتج')}); }
+function openCategoryForm(id){ const c=id?C(id):{}; const f=[{n:'name',l:'اسم الفئة',req:1,val:c.name,full:1,max:120},{n:'status',l:'الحالة',type:'select',req:1,opts:{active:'نشطة',inactive:'غير نشطة'},val:c.status||'active'}];
+  formModal(id?'تعديل الفئة':'فئة جديدة',f,async d=>{
+    if(DB.cats.some(x=>x.name===d.name&&x.id!==id)) throw new Error('اسم الفئة موجود مسبقاً');
+    if(id){ await q(sb.from('categories').update({name:d.name,status:d.status}).eq('id',id)); await audit('update','category',id,{name:d.name}); }
+    else { const r=await q(sb.from('categories').insert({name:d.name,status:d.status}).select('id').single()); await audit('create','category',r?.id,{name:d.name}); }
+  }, id?'تم تحديث الفئة':'تمت إضافة الفئة'); }
+function openEmployeeForm(id){ const e=id?E(id):{}; const f=[{n:'name',l:'الاسم الكامل',req:1,val:e.name,full:1,max:120},{n:'dept',l:'القسم',val:e.dept,max:80},{n:'phone',l:'رقم الجوال',val:e.phone,max:20},{n:'status',l:'الحالة',type:'select',req:1,opts:{active:'نشط',inactive:'معطّل'},val:e.status||'active'}];
+  formModal(id?'تعديل بيانات الموظف':'إضافة موظف',f,async d=>{
+    const row={full_name:d.name,department:d.dept||null,phone:d.phone||null,status:d.status};
+    if(id){ await q(sb.from('employees').update(row).eq('id',id)); await audit('update','employee',id,{full_name:d.name}); }
+    else { const r=await q(sb.from('employees').insert(row).select('id').single()); await audit('create','employee',r?.id,{full_name:d.name}); }
+  }, id?'تم تحديث بيانات الموظف':'تمت إضافة الموظف','حفظ', d=>d.phone&&!/^\+?[0-9\s-]{7,20}$/.test(d.phone)?{phone:'رقم جوال غير صالح'}:null); }
+function toggleEmp(id){ const e=E(id); confirmDialog({title:e.active?'تعطيل الموظف؟':'تفعيل الموظف؟',msg:`${esc(e.name)} ${e.active?'سيُعلَّم كمعطّل.':'سيُعاد تفعيله.'}`,danger:e.active,ok:e.active?'تعطيل':'تفعيل',fn:()=>run(async()=>{ const st=e.active?'inactive':'active'; await q(sb.from('employees').update({status:st}).eq('id',id)); await audit('update','employee',id,{status:st}); },'تم تحديث حالة الموظف')}); }
+function confirmDelete(type,id){
+  if(DB.products.some(p=>p.cat===id)){ modal({size:'sm',title:'لا يمكن الحذف',body:`<div class="confirm-ic c-bad">${ic('alert')}</div><h3 style="font-size:17px;margin-bottom:6px">الفئة مرتبطة بمنتجات</h3><p style="color:var(--muted)">انقل المنتجات المرتبطة إلى فئة أخرى أو اجعل الفئة غير نشطة.</p>`,footer:`<button class="btn btn-ghost" onclick="closeModal()">حسناً</button>`}); return; }
+  const name=C(id).name;
+  confirmDialog({title:`حذف "${esc(name)}"؟`,msg:'سيتم حذف الفئة نهائياً ولا يمكن التراجع.',ok:'حذف نهائي',danger:true,fn:()=>run(async()=>{ await q(sb.from('categories').delete().eq('id',id)); await audit('delete','category',id,{name}); },'تم الحذف بنجاح')});
+}
+
+/* ----- Withdrawal requests ----- */
+function openRequestForm(pid){
+  const m=mine(); if(m&&!S.user.id){ toast('حسابك غير مرتبط بسجل موظف','warning'); return; }
+  const f=[...(m?[]:[{n:'emp',l:'الموظف',type:'select',req:1,opts:empOpts(),val:S.user.id,full:1}]),{n:'p',l:'المنتج',type:'select',req:1,opts:prodOpts(),val:pid,full:1},{n:'q',l:'الكمية',type:'number',req:1,val:1},{n:'note',l:'ملاحظات / سبب الطلب',type:'textarea',full:1,max:500}];
+  formModal('طلب سحب جديد',f,async d=>{
+    const emp = m?S.user.id:d.emp;
+    const r = await q(sb.from('withdrawal_requests').insert({employee_id:emp,status:'pending',notes:d.note||null}).select('id').single());
+    try{ await q(sb.from('withdrawal_request_items').insert({request_id:r.id,product_id:d.p,requested_quantity:+d.q})); }
+    catch(e){ await sb.from('withdrawal_requests').delete().eq('id',r.id); throw e; }
+    await audit('create','withdrawal_request',r.id,{product_id:d.p,quantity:+d.q});
+  }, 'تم إرسال الطلب بنجاح وهو الآن قيد المراجعة','إرسال الطلب',
+  d=>{ const p=P(d.p); return +d.q>p.stock?{q:`المتوفر حالياً ${fmt(p.stock)} ${p.unit} فقط`}:null; });
+}
+function approveRequest(id){ const r=DB.requests.find(x=>x.id===id); if(!r) return;
+  const short=r.items.filter(i=>P(i.p).stock<i.q);
+  confirmDialog({title:'الموافقة على الطلب؟',msg:short.length?'تنبيه: المخزون الحالي غير كافٍ لـ '+short.map(i=>esc(P(i.p).name)).join('، ')+'. يمكنك الموافقة وسيتم التحقق عند الصرف.':'سيصبح الطلب جاهزاً للصرف من المستودع.',ok:'موافقة',fn:()=>run(async()=>{
+    await q(sb.from('withdrawal_requests').update({status:'approved',approved_by:S.uid,approved_at:nowISO()}).eq('id',id).eq('status','pending'));
+    for(const it of r.items){ if(it.approved==null) await q(sb.from('withdrawal_request_items').update({approved_quantity:it.q}).eq('id',it.id)); }
+    await audit('approve','withdrawal_request',id,{});
+  },'تمت الموافقة على الطلب '+shortId(id))}); }
+function rejectRequest(id){
+  formModal('رفض الطلب '+shortId(id),[{n:'reason',l:'سبب الرفض',type:'textarea',req:1,full:1,max:500}],async d=>{
+    await q(sb.from('withdrawal_requests').update({status:'rejected',rejected_by:S.uid,rejected_at:nowISO(),rejection_reason:d.reason}).eq('id',id).eq('status','pending'));
+    await audit('reject','withdrawal_request',id,{reason:d.reason});
+  },'تم رفض الطلب','رفض الطلب'); }
+function cancelRequest(id){ confirmDialog({title:'إلغاء الطلب؟',msg:'لا يمكن التراجع عن هذا الإجراء.',ok:'إلغاء الطلب',danger:true,fn:()=>run(async()=>{ await q(sb.from('withdrawal_requests').update({status:'cancelled'}).eq('id',id).eq('status','pending')); await audit('cancel','withdrawal_request',id,{}); },'تم إلغاء الطلب','warning')}); }
+function issueRequest(id){ confirmDialog({title:'تأكيد صرف المواد؟',msg:'سيتم خصم الكميات من المخزون وإضافتها لعهدة الموظف.',ok:'تأكيد الصرف',fn:()=>run(()=>q(sb.rpc('issue_withdrawal_request',{p_request_id:id,p_performed_by:S.uid})),'تم صرف الطلب '+shortId(id)+' وتحديث المخزون')}); }
+
+/* ----- Shipments / consumption / returns / adjustments (RPC only) ----- */
+function openShipmentForm(pid){ const f=[{n:'p',l:'المنتج',type:'select',req:1,opts:prodOpts(),val:pid,full:1},{n:'q',l:'الكمية المستلمة',type:'number',req:1},{n:'shipment_number',l:'رقم الشحنة',max:80},{n:'supplier',l:'المورد',req:1,full:1,max:200},{n:'notes',l:'ملاحظات',type:'textarea',full:1,max:500}];
+  formModal('استلام شحنة واردة',f,d=>q(sb.rpc('receive_incoming_shipment',{p_product_id:d.p,p_quantity:+d.q,p_supplier:d.supplier,p_shipment_number:d.shipment_number||null,p_received_by:S.uid,p_created_by:S.uid,p_notes:d.notes||null})),'تم استلام الشحنة وإضافتها للمخزون','تأكيد الاستلام'); }
+function custodyForm(kind,pid,eid){
+  const m=mine(); if(m){ if(!S.user.id){ toast('حسابك غير مرتبط بسجل موظف','warning'); return; } eid=S.user.id; }
+  const f=[{n:'emp',l:'الموظف',type:'select',req:1,opts:m?{[S.user.id]:S.user.name}:empOpts(),val:eid},{n:'req',l:'الطلب المرتبط (اختياري)',type:'select',opts:{}},{n:'p',l:'المنتج (من العهدة)',type:'select',req:1,opts:heldOpts(eid),val:pid,full:1},{n:'q',l:'الكمية',type:'number',req:1},{n:'notes',l:kind==='consume'?'ملاحظات':'سبب الإرجاع / ملاحظات',type:'textarea',full:1,max:500}];
+  const isC=kind==='consume';
+  formModal(isC?'تسجيل استهلاك':'تسجيل مرتجع',f,d=>q(sb.rpc(isC?'consume_employee_inventory':'return_employee_inventory',{p_employee_id:d.emp,p_product_id:d.p,p_quantity:+d.q,p_request_id:d.req||null,p_recorded_by:S.uid,p_notes:d.notes||null})),
+    isC?'تم تسجيل الاستهلاك وخصمه من العهدة':'تم تسجيل المرتجع وإعادته للمخزون','حفظ',
+    d=>{ const h=heldRow(d.emp,d.p); return !h?{p:'لا توجد عهدة من هذا المنتج'}:+d.q>h.q?{q:`المتاح بالعهدة ${fmt(h.q)}`}:null; });
+  linkEmpProduct(); if(pid) $('#mf [name="p"]').value=pid;
+}
+const openConsumptionForm=(pid,eid)=>custodyForm('consume',pid,eid);
+const openReturnForm=(pid,eid)=>custodyForm('return',pid,eid);
+function openAdjForm(pid){ const f=[{n:'p',l:'المنتج',type:'select',req:1,opts:prodOpts(),val:pid,full:1},{n:'type',l:'نوع التسوية',type:'select',req:1,opts:{[ADJ_ADD]:'تسوية بالزيادة',[ADJ_SUB]:'تسوية بالنقص'}},{n:'q',l:'الكمية',type:'number',req:1},{n:'reason',l:'السبب',req:1,full:1,max:300}];
+  formModal('تسوية مخزون',f,d=>q(sb.rpc('adjust_inventory_stock',{p_product_id:d.p,p_adjustment_type:d.type,p_quantity:+d.q,p_reason:d.reason,p_performed_by:S.uid})),'تم تطبيق التسوية على المخزون','حفظ',
+    d=>{ const p=P(d.p); return d.type===ADJ_SUB&&+d.q>p.stock?{q:`المتوفر ${fmt(p.stock)} فقط`}:null; }); }
+
+/* ----- Detail modals ----- */
+function viewProduct(id){ const p=P(id); const tx=DB.transactions.filter(t=>t.p===id).slice(0,6);
+  modal({title:'تفاصيل المنتج',body:`<div style="display:flex;gap:14px;align-items:center;margin-bottom:16px">${prodCell(p)}<span style="margin-inline-start:auto">${badge(stockLevel(p),levelLabel[stockLevel(p)])}</span></div>${[['الفئة',esc(C(p.cat).name)],['الوحدة',esc(p.unit)],['الكمية المتوفرة',fmt(p.stock)+' '+esc(p.unit)],['محجوز',fmt(p.reserved)],['لدى الموظفين',fmt(p.held)+' '+esc(p.unit)],['الحد الأدنى',fmt(p.min)],['رمز QR',esc(p.qr)||'—']].map(r=>`<div class="detail-row"><span>${r[0]}</span><b>${r[1]}</b></div>`).join('')}<h4 style="margin-top:18px;font-size:14px">آخر الحركات</h4>${tx.length?tx.map(t=>{const neg=NEG_TX.includes(t.type)||t.q<0;return `<div class="list-item">${txBadge(t.type)}<div class="meta"><small>${fmtDT(t.date)} · ${esc(U(t.by))}</small></div><b class="${neg?'neg':'pos'}" dir="ltr">${neg?'−':'+'}${fmt(Math.abs(t.q))}</b></div>`}).join(''):'<p style="color:var(--muted);padding:10px 0">لا توجد حركات مسجلة</p>'}`,
+    footer:isMgr()?`<button class="btn btn-primary" onclick="openProductForm('${id}')">${ic('edit')}تعديل</button><button class="btn btn-ghost" onclick="closeModal()">إغلاق</button>`:`<button class="btn btn-primary" onclick="openRequestForm('${id}')">طلب سحب</button><button class="btn btn-ghost" onclick="closeModal()">إغلاق</button>`}); }
+function viewRequest(id){ const r=DB.requests.find(x=>x.id===id); if(!r){ toast('الطلب غير متاح','warning'); return; } const e=E(r.emp);
+  const n=v=>v==null?'—':fmt(v);
+  modal({size:'lg',title:`طلب سحب <span class="mono">${shortId(id)}</span>`,body:`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">${empCell(e)}${stBadge(r.status)}</div>${[['تاريخ الطلب',r.date?fmtDT(r.date):'—'],['الملاحظات',esc(r.note)||'—'],...(r.reason?[['سبب الرفض',esc(r.reason)]]:[])].map(x=>`<div class="detail-row"><span>${x[0]}</span><b>${x[1]}</b></div>`).join('')}<h4 style="margin:16px 0 6px;font-size:14px">الأصناف</h4><div class="card table-wrap" style="box-shadow:none"><table><thead><tr><th>المنتج</th><th>مطلوب</th><th>موافق</th><th>مصروف</th><th>متبقٍ</th><th>المتوفر</th></tr></thead><tbody>${r.items.length?r.items.map(i=>{const p=P(i.p);return `<tr><td>${esc(p.name)}</td><td class="num">${fmt(i.q)}</td><td class="num">${n(i.approved)}</td><td class="num">${n(i.issued)}</td><td class="num">${n(i.remaining)}</td><td>${p.stock>=i.q?`<span class="pos">${fmt(p.stock)}</span>`:`<span class="neg">${fmt(p.stock)}</span>`}</td></tr>`}).join(''):'<tr><td colspan="6" style="color:var(--muted)">لا توجد أصناف</td></tr>'}</tbody></table></div><div class="timeline"><div class="tl">تم إنشاء الطلب<small>${r.date?fmtDT(r.date):'—'} · ${esc(e.name)}</small></div>${r.approvedAt?`<div class="tl">تمت الموافقة<small>${fmtDT(r.approvedAt)} · ${esc(U(r.approvedBy))}</small></div>`:''}${r.rejectedAt?`<div class="tl">تم الرفض<small>${fmtDT(r.rejectedAt)} · ${esc(U(r.rejectedBy))}</small></div>`:''}</div>`,footer:reqActions(r,false)+`<button class="btn btn-ghost" onclick="closeModal()">إغلاق</button>`}); }
+function viewShipment(id){ const s=DB.shipments.find(x=>x.id===id); if(!s) return; modal({title:'تفاصيل الشحنة',body:[['رقم الشحنة',esc(s.no)||'—'],['المورد',esc(s.supplier)],['المنتج',esc(P(s.p).name)],['الكمية',`<span class="num pos">+${fmt(s.q)} ${esc(P(s.p).unit)}</span>`],['تاريخ الاستلام',fmtDT(s.date)],['المستلم',esc(U(s.receivedBy))],['ملاحظات',esc(s.note)||'—']].map(r=>`<div class="detail-row"><span>${r[0]}</span><b>${r[1]}</b></div>`).join(''),footer:`<button class="btn btn-ghost" onclick="closeModal()">إغلاق</button>`}); }
+function viewEmployee(id){ const e=E(id); const h=DB.held.filter(x=>x.emp===id);
+  modal({title:'عهد الموظف',body:`<div style="margin-bottom:12px">${empCell(e)}</div>${h.length?h.map(x=>`<div class="detail-row"><span>${esc(P(x.p).name)}</span><b class="num">${fmt(x.q)} ${esc(P(x.p).unit)}</b></div>`).join(''):'<p style="color:var(--muted)">لا توجد عهد حالياً لدى هذا الموظف.</p>'}`,footer:`<button class="btn btn-ghost" onclick="closeModal()">إغلاق</button>`}); }
+
+/* =========================================================
+   TOPBAR
+   ========================================================= */
+function closeAll(){ ['#notifDrop','#profileDrop','#gResults'].forEach(s=>$(s)?.classList.add('hidden')); }
+function renderNotifs(){
+  const u=S.notifs.filter(n=>n.unread).length; $('#notifDot').classList.toggle('hidden',!u);
+  $('#notifDrop').innerHTML=`<header><b>الإشعارات ${u?`<span class="badge b-pending" style="margin-inline-start:6px">${u}</span>`:''}</b>${u?`<a style="color:var(--brand);font-size:12.5px;cursor:pointer" onclick="S.notifs.forEach(n=>n.unread=false);renderNotifs()">تعليم الكل كمقروء</a>`:''}</header>${S.notifs.length?S.notifs.map(n=>`<div class="notif" style="cursor:pointer;${n.unread?'background:#fbf7ee':''}" onclick="${n.fn||''};closeAll()"><div class="ic ${n.c}">${ic(n.ic,'style="width:16px"')}</div><div><p>${n.t}</p><small>${esc(n.time)}</small></div></div>`).join(''):'<div style="padding:22px;text-align:center;color:var(--muted)">لا توجد إشعارات</div>'}`;
+}
+$('#notifBtn').onclick=e=>{e.stopPropagation();const h=$('#notifDrop').classList.contains('hidden');closeAll();if(h)$('#notifDrop').classList.remove('hidden')};
+$('#profileBtn').onclick=e=>{e.stopPropagation();const h=$('#profileDrop').classList.contains('hidden');closeAll();if(h)$('#profileDrop').classList.remove('hidden')};
+$('#reloadBtn').onclick=()=>reload(false);
+document.addEventListener('click',e=>{ if(!e.target.closest('.dropdown,.search,#notifBtn,#profileBtn')) closeAll(); });
+$('#gSearch').oninput=e=>{
+  const qv=e.target.value.trim(), ql=qv.toLowerCase(); const box=$('#gResults'); if(!qv){box.classList.add('hidden');return}
+  const res=[...PAGES.filter(p=>p.id&&can(p.id)&&p.t.includes(qv)).map(p=>({t:p.t,s:'صفحة',ic:p.ic,fn:`go('${p.id}')`})),
+    ...DB.products.filter(p=>p.name.toLowerCase().includes(ql)||p.sku.toLowerCase().includes(ql)).slice(0,5).map(p=>({t:p.name,s:p.sku,ic:'tag',fn:`viewProduct('${p.id}')`})),
+    ...(isMgr()?DB.employees.filter(x=>x.name.toLowerCase().includes(ql)).slice(0,3).map(x=>({t:x.name,s:'موظف',ic:'user',fn:`viewEmployee('${x.id}')`})):[]),
+    ...DB.requests.filter(r=>shortId(r.id).toLowerCase().includes(ql)).slice(0,3).map(r=>({t:shortId(r.id),s:STATUS[r.status]||r.status,ic:'clip',fn:`viewRequest('${r.id}')`}))];
+  box.innerHTML=res.length?res.map(r=>`<a onclick="${r.fn};closeAll();$('#gSearch').value=''">${ic(r.ic)}<span>${esc(r.t)}</span><small>${esc(r.s)}</small></a>`).join(''):`<div style="padding:18px;text-align:center;color:var(--muted)">لا توجد نتائج لـ "${esc(qv)}"</div>`;
+  box.classList.remove('hidden');
+};
+document.addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&e.key==='k'){e.preventDefault();$('#gSearch').focus()} if(e.key==='Escape'){closeModal();closeAll()} });
+$('#menuBtn').onclick=()=>{$('#sidebar').classList.add('open');$('#backdrop').classList.add('show')};
+$('#backdrop').onclick=()=>{$('#sidebar').classList.remove('open');$('#backdrop').classList.remove('show')};
+window.addEventListener('hashchange',()=>{ const h=location.hash.slice(1); if(S.loaded&&h&&h!==S.page&&VIEWS[h]&&!$('#app').classList.contains('hidden')) go(h); });
+
+/* =========================================================
+   AUTH (Supabase)
+   ========================================================= */
+function show(which){ $('#boot').classList.toggle('hidden',which!=='boot'); $('#login').classList.toggle('hidden',which!=='login'); $('#app').classList.toggle('hidden',which!=='app'); }
+function showLogin(msg){
+  S.uid=null; S.loaded=false; S.tbl={}; Object.keys(DB).forEach(k=>DB[k]=Array.isArray(DB[k])?[]:{}); closeModal(); show('login');
+  const er=$('#lgError'); er.classList.toggle('hidden',!msg); if(msg) er.innerHTML=ic('alert')+'<span>'+esc(msg)+'</span>';
+  const b=$('#lgBtn'); b.disabled=false; b.textContent='تسجيل الدخول';
+}
+let entering=null;
+async function enter(user){
+  if(entering) return entering;
+  entering=(async()=>{
+    S.uid=user.id; S.email=user.email||'';
+    let prof;
+    try{ prof = await q(sb.from('profiles').select('id,full_name,role,employee_id,status').eq('id',user.id).maybeSingle()); }
+    catch(e){ await sb.auth.signOut(); return showLogin('تعذّر تحميل ملفك الشخصي: '+errMsg(e)); }
+    if(!prof){ await sb.auth.signOut(); return showLogin('لا يوجد ملف شخصي مرتبط بهذا الحساب. تواصل مع مدير النظام.'); }
+    if(prof.status && prof.status!=='active'){ await sb.auth.signOut(); return showLogin('هذا الحساب غير مفعّل. تواصل مع مدير النظام.'); }
+    S.role = ROLES[prof.role]?prof.role:'employee';
+    S.user = {id:prof.employee_id||null, name:prof.full_name||S.email, dept:''};
+    $('#pName').textContent=S.user.name; $('#pRole').textContent=ROLES[S.role];
+    $('#pAv').textContent=initials(S.user.name||'؟'); $('#sideAv').textContent=initials(S.user.name||'؟'); $('#sideRole').textContent=ROLES[S.role];
+    show('app'); S.tbl={}; renderNav(); $('#content').innerHTML=skeleton();
+    try{ await loadAll(); }catch(e){ toast(errMsg(e),'error'); }
+    S.user.dept = S.user.id?E(S.user.id).dept:'';
+    renderNotifs();
+    const h=location.hash.slice(1); go(h&&VIEWS[h]&&can(h)?h:'dashboard');
+  })();
+  try{ await entering; } finally{ entering=null; }
+}
+$('#loginForm').onsubmit=async e=>{
+  e.preventDefault(); const em=$('#lgEmail'), pw=$('#lgPass');
+  const bE=!/^\S+@\S+\.\S+$/.test(em.value.trim()), bP=pw.value.length<6;
+  em.classList.toggle('err',bE); em.nextElementSibling.classList.toggle('hidden',!bE);
+  pw.classList.toggle('err',bP); pw.nextElementSibling.classList.toggle('hidden',!bP);
+  $('#lgError').classList.add('hidden');
+  if(bE||bP) return;
+  const b=$('#lgBtn'); b.disabled=true; b.innerHTML='<span class="spinner"></span> جارٍ التحقق...';
+  try{
+    const {data,error}=await sb.auth.signInWithPassword({email:em.value.trim(),password:pw.value});
+    if(error) throw error;
+    pw.value=''; await enter(data.user);
+    if(S.uid){ toast('مرحباً بك، '+esc(S.user.name),'success'); audit('login','auth',null,{}); }
+  }catch(err){ showLogin(errMsg(err)); }
+};
+async function doSignOut(scope){
+  try{ await audit('logout','auth',null,{}); await sb.auth.signOut(scope==='global'?{scope:'global'}:undefined); }
+  catch(e){ console.warn(e?.message); }
+  history.replaceState(null,'',location.pathname); showLogin();
+}
+function logout(){ confirmDialog({title:'تسجيل الخروج؟',msg:'سيتم إنهاء جلستك الحالية.',ok:'تسجيل الخروج',fn:()=>doSignOut()}); }
+
+sb.auth.onAuthStateChange((event, session)=>{
+  if(event==='SIGNED_OUT' && S.uid) showLogin('انتهت الجلسة، يرجى تسجيل الدخول مجدداً');
+});
+window.addEventListener('unhandledrejection', e=>{ e.preventDefault(); console.warn(e.reason); toast(errMsg(e.reason),'error'); });
+
+(async function boot(){
+  try{
+    const {data:{session},error} = await sb.auth.getSession();
+    if(error) throw error;
+    if(session?.user) await enter(session.user); else showLogin();
+  }catch(e){ showLogin(errMsg(e)); }
+})();
+
+</script>
+</body>
+</html>
