@@ -574,9 +574,10 @@ async function loadAll(){
     isMgr()?safe('stock_adjustments', sb.from('stock_adjustments').select('id,product_id,adjustment_type,quantity,reason,performed_by,created_at').order('created_at',{ascending:false}).limit(1000)):Promise.resolve([]),
     safe('inventory_transactions', sb.from('inventory_transactions').select('id,transaction_type,product_id,quantity,reference_id,employee_id,performed_by,stock_before,stock_after,notes,created_at').order('created_at',{ascending:false}).limit(2000)),
     adm?safe('audit_logs', sb.from('audit_logs').select('id,action,entity_type,entity_id,user_id,details,created_at').order('created_at',{ascending:false}).limit(1000)):Promise.resolve([]),
-    safe('profiles', sb.from('profiles').select('id,full_name')),
+    safe('profiles', sb.from('profiles').select('id,full_name,role,employee_id')),
   ]);
   DB.profiles = Object.fromEntries(profs.map(p=>[p.id,p.full_name||'—']));
+  DB.empProfiles = Object.fromEntries(profs.filter(p=>p.employee_id).map(p=>[p.employee_id,{id:p.id,role:p.role}]));
   DB.cats = cats.map((c,i)=>({id:c.id,name:c.name||'—',status:c.status,active:c.status!=='inactive',color:tones[i%tones.length]}));
   const invBy = Object.fromEntries(inv.map(i=>[i.product_id,i]));
   DB.products = prods.map(p=>{ const i=invBy[p.id]||{}; return {id:p.id,sku:p.product_code||'',name:p.name||'—',cat:p.category_id,unit:p.unit||'',qr:p.qr_code||'',min:+p.minimum_stock||0,status:p.status,active:p.status!=='inactive',stock:+i.current_stock||0,reserved:+i.reserved_stock||0,held:+i.employee_held_stock||0,invUpdated:i.updated_at}; });
@@ -626,6 +627,10 @@ const pageMeta = id => PAGES.find(p=>p.id===id);
 const can = id => !!pageMeta(id)?.roles.includes(S.role);
 const isMgr = () => S.role==='admin' || S.role==='supervisor';
 const mine = () => S.role==='employee';
+// Employee-management permissions (UI only — the backend/RLS must enforce the same rules)
+const canAddEmp = () => S.role==='admin' || S.role==='supervisor';
+const empRole = id => ((DB.empProfiles||{})[id]||{}).role || 'employee';
+const canToggleEmp = e => S.role==='admin' ? true : (S.role==='supervisor' && empRole(e.id)==='employee');
 
 function renderNav(){
   $('#nav').innerHTML = PAGES.map(p=>{
@@ -758,14 +763,46 @@ VIEWS.requests = () => {
     searchKeys:r=>shortId(r.id)+r.id+E(r.emp).name+r.note+r.items.map(i=>P(i.p).name).join(' '), tabs:{opts:{pending:'قيد الانتظار',approved:'موافق عليه',issued:'تم الصرف',rejected:'مرفوض',cancelled:'ملغي'},fn:(r,v)=>v==='issued'?['issued','completed','partially_issued'].includes(r.status):r.status===v},
     actions:r=>actBtn('eye',`viewRequest('${r.id}')`,'عرض')+reqActions(r,true)});
 };
-function reqActions(r,icons){
-  const b=(i,fn,t,c,btn)=>icons?actBtn(i,fn,t,c):`<button class="btn ${btn}" onclick="${fn}">${ic(i)}${t}</button>`;
-  let h='';
-  if(isMgr()&&r.status==='pending') h+=b('check',`approveRequest('${r.id}')`,'موافقة','ok','btn-primary')+b('x',`rejectRequest('${r.id}')`,'رفض','bad','btn-danger');
-  if(isMgr()&&['approved','partially_issued'].includes(r.status)) h+=b('box',`issueRequest('${r.id}')`,'صرف','ok','btn-primary');
-  if(mine()&&r.status==='pending'&&r.emp===S.user.id) h+=b('x',`cancelRequest('${r.id}')`,'إلغاء','bad','btn-danger');
+
+function reqActions(r, icons) {
+  const b = (i, fn, t, c, btn) =>
+    icons
+      ? actBtn(i, fn, t, c)
+      : `<button class="btn ${btn}" onclick="${fn}">${ic(i)}${t}</button>`;
+
+  let h = '';
+
+  if (isMgr() && r.status === 'pending') {
+    h += b(
+      'check',
+      `approveRequest('${r.id}')`,
+      'اعتماد وصرف',
+      'ok',
+      'btn-primary'
+    );
+
+    h += b(
+      'x',
+      `rejectRequest('${r.id}')`,
+      'رفض',
+      'bad',
+      'btn-danger'
+    );
+  }
+
+  if (mine() && r.status === 'pending' && r.emp === S.user.id) {
+    h += b(
+      'x',
+      `cancelRequest('${r.id}')`,
+      'إلغاء',
+      'bad',
+      'btn-danger'
+    );
+  }
+
   return h;
 }
+
 
 VIEWS.held = () => {
   const m=mine();
@@ -779,13 +816,13 @@ VIEWS.held = () => {
     actions:h=>actBtn('undo',`openReturnForm('${h.p}','${h.emp}')`,'إرجاع')+actBtn('flame',`openConsumptionForm('${h.p}','${h.emp}')`,'تسجيل استهلاك')});
 };
 
-VIEWS.employees = () => head('الموظفون','سجلات الموظفين والأقسام والعهد', S.role==='admin'?`<button class="btn btn-primary" onclick="openEmployeeForm()">${ic('plus')}موظف جديد</button>`:'') +
+VIEWS.employees = () => head('الموظفون','سجلات الموظفين والأقسام والعهد', canAddEmp()?`<button class="btn btn-primary" onclick="openEmployeeForm()">${ic('plus')}موظف جديد</button>`:'') +
   table({key:'emp',rows:()=>DB.employees,cols:[{h:'الموظف',r:e=>empCell(e),sort:e=>e.name},{h:'القسم',r:e=>esc(e.dept)||dash,sort:e=>e.dept},{h:'الجوال',r:e=>e.phone?`<span class="mono" dir="ltr">${esc(e.phone)}</span>`:dash},{h:'بالعهدة',r:e=>`<span class="num">${fmt(DB.held.filter(h=>h.emp===e.id).reduce((a,h)=>a+h.q,0))}</span> وحدة`,sort:e=>DB.held.filter(h=>h.emp===e.id).reduce((a,h)=>a+h.q,0)},{h:'تاريخ الإضافة',r:e=>dOnly(e.created),sort:e=>e.created||''},{h:'الحالة',r:e=>e.active?badge('active','نشط'):badge('inactive','معطّل')}],
     searchKeys:e=>e.name+e.dept+e.phone, tabs:{opts:{1:'نشط',0:'معطّل'},fn:(e,v)=>String(+e.active)===v}, filters:[{k:'d',label:'كل الأقسام',opts:Object.fromEntries([...new Set(DB.employees.map(e=>e.dept).filter(Boolean))].map(d=>[d,d])),fn:(e,v)=>e.dept===v}],
-    actions:e=>actBtn('hand',`viewEmployee('${e.id}')`,'العهد')+(S.role==='admin'?actBtn('edit',`openEmployeeForm('${e.id}')`,'تعديل')+actBtn(e.active?'lock':'check',`toggleEmp('${e.id}')`,e.active?'تعطيل':'تفعيل',e.active?'bad':'ok'):'')});
+    actions:e=>actBtn('hand',`viewEmployee('${e.id}')`,'العهد')+(S.role==='admin'?actBtn('edit',`openEmployeeForm('${e.id}')`,'تعديل'):'')+(canToggleEmp(e)?actBtn(e.active?'lock':'check',`toggleEmp('${e.id}')`,e.active?'تعطيل':'تفعيل',e.active?'bad':'ok'):'')});
 
 VIEWS.shipments = () => head('الشحنات الواردة','استلام شحنات الموردين وإضافتها للمخزون', `<button class="btn btn-primary" onclick="openShipmentForm()">${ic('plus')}استلام شحنة</button>`) +
-  table({key:'ship',rows:()=>DB.shipments,cols:[{h:'رقم الشحنة',r:s=>s.no?`<span class="mono">${esc(s.no)}</span>`:dash,sort:s=>s.no},{h:'المورد',r:s=>`<div class="cell-main"><div class="thumb c-info">${ic('truck','style="width:16px"')}</div><div><b>${esc(s.supplier)}</b></div></div>`,sort:s=>s.supplier},{h:'المنتج',r:s=>prodCell(P(s.p)),sort:s=>P(s.p).name},{h:'الكمية',r:s=>`<span class="num pos">+${fmt(s.q)}</span> ${esc(P(s.p).unit)}`,sort:s=>s.q},{h:'تاريخ الاستلام',r:s=>fmtDT(s.date),sort:s=>s.date||''},{h:'المستلم',r:s=>esc(U(s.receivedBy))}],
+  table({key:'ship',rows:()=>DB.shipments,cols:[{h:'رقم الشحنة',r:s=>s.no?`<span class="mono">${esc(s.no)}</span>`:dash,sort:s=>s.no},{h:'المورد',r:s=>`<div class="cell-main"><div class="thumb c-info">${ic('truck','style="width:16px"')}</div><div><b>${esc(s.supplier)}</b></div></div>`,sort:s=>s.supplier},{h:'المنتج',r:s=>prodCell(P(s.p)),sort:s=>P(s.p).name},{h:'الكمية',r:s=>`<span class="num pos">+${fmt(s.q)}</span> ${esc(P(s.p).unit)}`,sort:s=>s.q},{h:'تاريخ الاستلام',r:s=>fmtDT(s.date),sort:s=>s.date||''},{h:'المستلم',r:s=>esc(U(s.createdBy))}],
     searchKeys:s=>s.no+s.supplier+P(s.p).name+s.note,
     actions:s=>actBtn('eye',`viewShipment('${s.id}')`,'عرض')});
 
@@ -814,7 +851,7 @@ const REPORTS = {
   cons:['تقرير الاستهلاك','الاستهلاك حسب الموظف والقسم','flame','c-gold',()=>DB.consumption.map(c=>({'التاريخ':c.date,'المنتج':P(c.p).name,'الكمية':c.q,'الموظف':E(c.emp).name,'القسم':E(c.emp).dept,'ملاحظات':c.note}))],
   held:['تقرير عُهد الموظفين','المواد بحوزة كل موظف','hand','c-ok',()=>DB.held.map(h=>({'الموظف':E(h.emp).name,'القسم':E(h.emp).dept,'المنتج':P(h.p).name,'الكمية':h.q,'آخر تحديث':h.since}))],
   low:['تقرير المنخفض','الأصناف تحت الحد الأدنى','alert','c-bad',()=>DB.products.filter(p=>p.active&&p.stock<p.min).map(p=>({'رمز الصنف':p.sku,'المنتج':p.name,'المتوفر':p.stock,'الحد الأدنى':p.min}))],
-  ship:['تقرير الشحنات','الشحنات الواردة','truck','c-info',()=>DB.shipments.map(s=>({'رقم الشحنة':s.no,'المورد':s.supplier,'المنتج':P(s.p).name,'الكمية':s.q,'التاريخ':s.date,'المستلم':U(s.receivedBy)}))],
+  ship:['تقرير الشحنات','الشحنات الواردة','truck','c-info',()=>DB.shipments.map(s=>({'رقم الشحنة':s.no,'المورد':s.supplier,'المنتج':P(s.p).name,'الكمية':s.q,'التاريخ':s.date,'المستلم':U(s.createdBy)}))],
   ret:['تقرير المرتجعات','المرتجعات من الموظفين','undo','c-brand',()=>DB.returns.map(r=>({'التاريخ':r.date,'المنتج':P(r.p).name,'الكمية':r.q,'الموظف':E(r.emp).name,'ملاحظات':r.note}))],
   adj:['تقرير التسويات','فروقات الجرد والتسويات','sliders','c-warn',()=>DB.adjustments.map(a=>({'التاريخ':a.date,'المنتج':P(a.p).name,'النوع':isAdd(a.type)?'زيادة':'نقص','الكمية':a.q,'السبب':a.reason,'بواسطة':U(a.by)}))],
 };
@@ -874,10 +911,25 @@ function formModal(title,fields,onOk,okMsg,saveLabel='حفظ',validate){
   modal({title,body:form(fields),footer:`<button class="btn btn-primary" id="mfSave" onclick="__ff()">${saveLabel}</button><button class="btn btn-ghost" onclick="closeModal()">إلغاء</button>`});
   $('#mf').onsubmit=e=>{e.preventDefault();__ff();};
 }
-async function run(fn, okMsg, type='success'){
-  try{ const r=await fn(); if(okMsg) toast(okMsg,type); await reload(); return r; }
-  catch(e){ console.warn('[action]',e?.message); toast(errMsg(e),'error'); }
+
+async function run(fn, okMsg, type = 'success') {
+  try {
+    const r = await fn();
+
+    if (okMsg) toast(okMsg, type);
+
+    await reload();
+
+    return r;
+  } catch (e) {
+    console.warn('[action]', e?.message || e);
+
+    toast(errMsg(e), 'error');
+
+    throw e;
+  }
 }
+
 const prodOpts = () => Object.fromEntries(DB.products.filter(p=>p.active).map(p=>[p.id,`${p.name} (${fmt(p.stock)} ${p.unit})`]));
 const empOpts = () => Object.fromEntries(DB.employees.filter(e=>e.active).map(e=>[e.id,e.name]));
 const heldRow = (emp,p) => DB.held.find(h=>h.emp===emp && h.p===p);
@@ -904,13 +956,94 @@ function openCategoryForm(id){ const c=id?C(id):{}; const f=[{n:'name',l:'اسم
     if(id){ await q(sb.from('categories').update({name:d.name,status:d.status}).eq('id',id)); await audit('update','category',id,{name:d.name}); }
     else { const r=await q(sb.from('categories').insert({name:d.name,status:d.status}).select('id').single()); await audit('create','category',r?.id,{name:d.name}); }
   }, id?'تم تحديث الفئة':'تمت إضافة الفئة'); }
-function openEmployeeForm(id){ const e=id?E(id):{}; const f=[{n:'name',l:'الاسم الكامل',req:1,val:e.name,full:1,max:120},{n:'dept',l:'القسم',val:e.dept,max:80},{n:'phone',l:'رقم الجوال',val:e.phone,max:20},{n:'status',l:'الحالة',type:'select',req:1,opts:{active:'نشط',inactive:'معطّل'},val:e.status||'active'}];
+function openEmployeeForm(id){ if(id ? S.role!=='admin' : !canAddEmp()){ toast('ليست لديك صلاحية لتنفيذ هذا الإجراء','error'); return; } const e=id?E(id):{}; const prof=id?((DB.empProfiles||{})[id]||null):null; const isAdminProf=prof&&prof.role==='admin';
+  const ROLE_OPTS={employee:'موظف',supervisor:'مشرف'};
+  const f=[{n:'name',l:'الاسم الكامل',req:1,val:e.name,full:1,max:120}];
+  if(!id) f.push({n:'email',l:'البريد الإلكتروني',type:'email',req:1,max:160},{n:'password',l:'كلمة المرور',type:'password',req:1,max:72});
+  f.push({n:'dept',l:'القسم',val:e.dept,max:80},{n:'phone',l:'رقم الجوال',val:e.phone,max:20});
+  if(S.role==='admin' && (!id || (prof && !isAdminProf))) f.push({n:'role',l:'الدور',type:'select',req:1,opts:ROLE_OPTS,val:(prof&&ROLE_OPTS[prof.role])?prof.role:'employee'});
+  if(id) f.push({n:'status',l:'الحالة',type:'select',req:1,opts:{active:'نشط',inactive:'معطّل'},val:e.status||'active'});
   formModal(id?'تعديل بيانات الموظف':'إضافة موظف',f,async d=>{
-    const row={full_name:d.name,department:d.dept||null,phone:d.phone||null,status:d.status};
-    if(id){ await q(sb.from('employees').update(row).eq('id',id)); await audit('update','employee',id,{full_name:d.name}); }
-    else { const r=await q(sb.from('employees').insert(row).select('id').single()); await audit('create','employee',r?.id,{full_name:d.name}); }
-  }, id?'تم تحديث بيانات الموظف':'تمت إضافة الموظف','حفظ', d=>d.phone&&!/^\+?[0-9\s-]{7,20}$/.test(d.phone)?{phone:'رقم جوال غير صالح'}:null); }
-function toggleEmp(id){ const e=E(id); confirmDialog({title:e.active?'تعطيل الموظف؟':'تفعيل الموظف؟',msg:`${esc(e.name)} ${e.active?'سيُعلَّم كمعطّل.':'سيُعاد تفعيله.'}`,danger:e.active,ok:e.active?'تعطيل':'تفعيل',fn:()=>run(async()=>{ const st=e.active?'inactive':'active'; await q(sb.from('employees').update({status:st}).eq('id',id)); await audit('update','employee',id,{status:st}); },'تم تحديث حالة الموظف')}); }
+    // Supervisors can only ever create ordinary employees; the role field is hidden for them
+    const role = (S.role==='admin' && d.role==='supervisor')?'supervisor':'employee';
+    if(id){
+      const row={full_name:d.name,department:d.dept||null,phone:d.phone||null,status:d.status};
+      await q(sb.from('employees').update(row).eq('id',id));
+      if(prof && !isAdminProf && d.role && prof.role!==role){ await q(sb.from('profiles').update({role}).eq('id',prof.id)); }
+      await audit('update','employee',id,{full_name:d.name,...(prof&&!isAdminProf?{role}:{})});
+    } else {
+      // Frontend permission check: only a logged-in, active admin or supervisor may create accounts (backend re-verifies)
+      if(!canAddEmp()) throw new Error('ليست لديك صلاحية لتنفيذ هذا الإجراء');
+      const {data:{session}}=await sb.auth.getSession();
+      if(!session?.access_token) throw new Error('انتهت الجلسة، يرجى تسجيل الدخول مجدداً');
+      const myProf=await q(sb.from('profiles').select('role,status').eq('id',session.user.id).maybeSingle());
+      if(!myProf || !['admin','supervisor'].includes(myProf.role) || (myProf.status && myProf.status!=='active')) throw new Error('ليست لديك صلاحية لتنفيذ هذا الإجراء');
+      if(myProf.role!=='admin' && role!=='employee') throw new Error('يمكن للمشرف إنشاء حسابات موظفين فقط');
+      const body={email:String(d.email).trim().toLowerCase(),password:d.password,full_name:d.name,department:d.dept||null,phone:d.phone||null,role};
+      // Send the authenticated user's access token (not just the anon key) so the Edge Function can verify the caller
+      const {data,error}=await sb.functions.invoke('create-employee',{body,headers:{Authorization:'Bearer '+session.access_token}});
+      if(error){ let m=error.message; try{ const j=await error.context?.json?.(); m=j?.error||j?.message||m; }catch(_){} throw new Error(m); }
+      if(data?.error) throw new Error(data.error);
+      await audit('create','employee',data?.employee_id||data?.employee?.id||null,{full_name:d.name,email:body.email,role});
+    }
+  }, id?'تم تحديث بيانات الموظف':'تمت إضافة الموظف وإنشاء حساب الدخول','حفظ', d=>{ const er={};
+    if(d.phone&&!/^\+?[0-9\s-]{7,20}$/.test(d.phone)) er.phone='رقم جوال غير صالح';
+    if(!id){ if(d.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(d.email).trim())) er.email='بريد إلكتروني غير صالح';
+      if(d.password&&String(d.password).length<6) er.password='كلمة المرور يجب ألا تقل عن 6 أحرف'; }
+    return Object.keys(er).length?er:null; }); }
+
+function toggleEmp(id) {
+  const e = E(id);
+
+  if (!e || !canToggleEmp(e)) {
+    toast('ليست لديك صلاحية لتغيير حالة هذا الحساب', 'error');
+    return;
+  }
+
+  const newStatus = e.active ? 'inactive' : 'active';
+
+  confirmDialog({
+    title: e.active ? 'تعطيل الموظف؟' : 'تفعيل الموظف؟',
+    msg: e.active
+      ? `${esc(e.name)} لن يتمكن من استخدام حسابه بعد التعطيل.`
+      : `سيتم إعادة تفعيل حساب ${esc(e.name)}.`,
+    danger: e.active,
+    ok: e.active ? 'تعطيل' : 'تفعيل',
+
+    fn: () => run(async () => {
+      const { data: { session }, error: sessionError } =
+        await sb.auth.getSession();
+
+      if (sessionError) throw sessionError;
+
+      if (!session?.access_token) {
+        throw new Error('انتهت الجلسة، يرجى تسجيل الدخول مجدداً');
+      }
+
+      const { data, error } = await sb.functions.invoke(
+        'admin-set-employee-status',
+        {
+          body: {
+            employee_id: id,
+            status: newStatus
+          }
+        }
+      );
+
+      if (error) throw error;
+
+      if (!data || data.success !== true) {
+        throw new Error(
+          data?.error || 'لم يتمكن النظام من تحديث حالة الموظف'
+        );
+      }
+
+      return data;
+    }, newStatus === 'inactive'
+      ? 'تم تعطيل الموظف وحسابه'
+      : 'تم تفعيل الموظف وحسابه')
+  });
+}
 function confirmDelete(type,id){
   if(DB.products.some(p=>p.cat===id)){ modal({size:'sm',title:'لا يمكن الحذف',body:`<div class="confirm-ic c-bad">${ic('alert')}</div><h3 style="font-size:17px;margin-bottom:6px">الفئة مرتبطة بمنتجات</h3><p style="color:var(--muted)">انقل المنتجات المرتبطة إلى فئة أخرى أو اجعل الفئة غير نشطة.</p>`,footer:`<button class="btn btn-ghost" onclick="closeModal()">حسناً</button>`}); return; }
   const name=C(id).name;
@@ -930,24 +1063,47 @@ function openRequestForm(pid){
   }, 'تم إرسال الطلب بنجاح وهو الآن قيد المراجعة','إرسال الطلب',
   d=>{ const p=P(d.p); return +d.q>p.stock?{q:`المتوفر حالياً ${fmt(p.stock)} ${p.unit} فقط`}:null; });
 }
-function approveRequest(id){ const r=DB.requests.find(x=>x.id===id); if(!r) return;
-  const short=r.items.filter(i=>P(i.p).stock<i.q);
-  confirmDialog({title:'الموافقة على الطلب؟',msg:short.length?'تنبيه: المخزون الحالي غير كافٍ لـ '+short.map(i=>esc(P(i.p).name)).join('، ')+'. يمكنك الموافقة وسيتم التحقق عند الصرف.':'سيصبح الطلب جاهزاً للصرف من المستودع.',ok:'موافقة',fn:()=>run(async()=>{
-    await q(sb.from('withdrawal_requests').update({status:'approved',approved_by:S.uid,approved_at:nowISO()}).eq('id',id).eq('status','pending'));
-    for(const it of r.items){ if(it.approved==null) await q(sb.from('withdrawal_request_items').update({approved_quantity:it.q}).eq('id',it.id)); }
-    await audit('approve','withdrawal_request',id,{});
-  },'تمت الموافقة على الطلب '+shortId(id))}); }
+
+
+function approveRequest(id) {
+  const r = DB.requests.find(x => x.id === id);
+  if (!r) return;
+
+  confirmDialog({
+    title: 'اعتماد وصرف الطلب؟',
+    msg: 'سيتم التحقق من المخزون، ثم خصم جميع الكميات المعتمدة وإضافتها إلى عهدة الموظف. إذا لم يكفِ المخزون لأي منتج، فلن تتم العملية.',
+    ok: 'اعتماد وصرف',
+    fn: () => run(async () => {
+      const { data, error } = await sb.rpc(
+        'approve_and_issue_withdrawal_request',
+        { p_request_id: id }
+      );
+
+      if (error) throw error;
+
+      if (!data || data.success !== true) {
+        throw new Error('لم يؤكد النظام نجاح عملية الاعتماد والصرف.');
+      }
+
+      return data;
+    }, 'تم اعتماد وصرف الطلب ' + shortId(id))
+  });
+}
+
 function rejectRequest(id){
   formModal('رفض الطلب '+shortId(id),[{n:'reason',l:'سبب الرفض',type:'textarea',req:1,full:1,max:500}],async d=>{
     await q(sb.from('withdrawal_requests').update({status:'rejected',rejected_by:S.uid,rejected_at:nowISO(),rejection_reason:d.reason}).eq('id',id).eq('status','pending'));
     await audit('reject','withdrawal_request',id,{reason:d.reason});
   },'تم رفض الطلب','رفض الطلب'); }
 function cancelRequest(id){ confirmDialog({title:'إلغاء الطلب؟',msg:'لا يمكن التراجع عن هذا الإجراء.',ok:'إلغاء الطلب',danger:true,fn:()=>run(async()=>{ await q(sb.from('withdrawal_requests').update({status:'cancelled'}).eq('id',id).eq('status','pending')); await audit('cancel','withdrawal_request',id,{}); },'تم إلغاء الطلب','warning')}); }
-function issueRequest(id){ confirmDialog({title:'تأكيد صرف المواد؟',msg:'سيتم خصم الكميات من المخزون وإضافتها لعهدة الموظف.',ok:'تأكيد الصرف',fn:()=>run(()=>q(sb.rpc('issue_withdrawal_request',{p_request_id:id,p_performed_by:S.uid})),'تم صرف الطلب '+shortId(id)+' وتحديث المخزون')}); }
+
+function issueRequest(id) {
+  approveRequest(id);
+}
 
 /* ----- Shipments / consumption / returns / adjustments (RPC only) ----- */
 function openShipmentForm(pid){ const f=[{n:'p',l:'المنتج',type:'select',req:1,opts:prodOpts(),val:pid,full:1},{n:'q',l:'الكمية المستلمة',type:'number',req:1},{n:'shipment_number',l:'رقم الشحنة',max:80},{n:'supplier',l:'المورد',req:1,full:1,max:200},{n:'notes',l:'ملاحظات',type:'textarea',full:1,max:500}];
-  formModal('استلام شحنة واردة',f,d=>q(sb.rpc('receive_incoming_shipment',{p_product_id:d.p,p_quantity:+d.q,p_supplier:d.supplier,p_shipment_number:d.shipment_number||null,p_received_by:S.uid,p_created_by:S.uid,p_notes:d.notes||null})),'تم استلام الشحنة وإضافتها للمخزون','تأكيد الاستلام'); }
+  formModal('استلام شحنة واردة',f,d=>q(sb.rpc('receive_incoming_shipment',{p_product_id:d.p,p_quantity:+d.q,p_supplier:d.supplier,p_shipment_number:d.shipment_number||null,p_received_by:S.user.id||null,p_created_by:S.uid,p_notes:d.notes||null})),'تم استلام الشحنة وإضافتها للمخزون','تأكيد الاستلام'); }
 function custodyForm(kind,pid,eid){
   const m=mine(); if(m){ if(!S.user.id){ toast('حسابك غير مرتبط بسجل موظف','warning'); return; } eid=S.user.id; }
   const f=[{n:'emp',l:'الموظف',type:'select',req:1,opts:m?{[S.user.id]:S.user.name}:empOpts(),val:eid},{n:'req',l:'الطلب المرتبط (اختياري)',type:'select',opts:{}},{n:'p',l:'المنتج (من العهدة)',type:'select',req:1,opts:heldOpts(eid),val:pid,full:1},{n:'q',l:'الكمية',type:'number',req:1},{n:'notes',l:kind==='consume'?'ملاحظات':'سبب الإرجاع / ملاحظات',type:'textarea',full:1,max:500}];
@@ -970,7 +1126,7 @@ function viewProduct(id){ const p=P(id); const tx=DB.transactions.filter(t=>t.p=
 function viewRequest(id){ const r=DB.requests.find(x=>x.id===id); if(!r){ toast('الطلب غير متاح','warning'); return; } const e=E(r.emp);
   const n=v=>v==null?'—':fmt(v);
   modal({size:'lg',title:`طلب سحب <span class="mono">${shortId(id)}</span>`,body:`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">${empCell(e)}${stBadge(r.status)}</div>${[['تاريخ الطلب',r.date?fmtDT(r.date):'—'],['الملاحظات',esc(r.note)||'—'],...(r.reason?[['سبب الرفض',esc(r.reason)]]:[])].map(x=>`<div class="detail-row"><span>${x[0]}</span><b>${x[1]}</b></div>`).join('')}<h4 style="margin:16px 0 6px;font-size:14px">الأصناف</h4><div class="card table-wrap" style="box-shadow:none"><table><thead><tr><th>المنتج</th><th>مطلوب</th><th>موافق</th><th>مصروف</th><th>متبقٍ</th><th>المتوفر</th></tr></thead><tbody>${r.items.length?r.items.map(i=>{const p=P(i.p);return `<tr><td>${esc(p.name)}</td><td class="num">${fmt(i.q)}</td><td class="num">${n(i.approved)}</td><td class="num">${n(i.issued)}</td><td class="num">${n(i.remaining)}</td><td>${p.stock>=i.q?`<span class="pos">${fmt(p.stock)}</span>`:`<span class="neg">${fmt(p.stock)}</span>`}</td></tr>`}).join(''):'<tr><td colspan="6" style="color:var(--muted)">لا توجد أصناف</td></tr>'}</tbody></table></div><div class="timeline"><div class="tl">تم إنشاء الطلب<small>${r.date?fmtDT(r.date):'—'} · ${esc(e.name)}</small></div>${r.approvedAt?`<div class="tl">تمت الموافقة<small>${fmtDT(r.approvedAt)} · ${esc(U(r.approvedBy))}</small></div>`:''}${r.rejectedAt?`<div class="tl">تم الرفض<small>${fmtDT(r.rejectedAt)} · ${esc(U(r.rejectedBy))}</small></div>`:''}</div>`,footer:reqActions(r,false)+`<button class="btn btn-ghost" onclick="closeModal()">إغلاق</button>`}); }
-function viewShipment(id){ const s=DB.shipments.find(x=>x.id===id); if(!s) return; modal({title:'تفاصيل الشحنة',body:[['رقم الشحنة',esc(s.no)||'—'],['المورد',esc(s.supplier)],['المنتج',esc(P(s.p).name)],['الكمية',`<span class="num pos">+${fmt(s.q)} ${esc(P(s.p).unit)}</span>`],['تاريخ الاستلام',fmtDT(s.date)],['المستلم',esc(U(s.receivedBy))],['ملاحظات',esc(s.note)||'—']].map(r=>`<div class="detail-row"><span>${r[0]}</span><b>${r[1]}</b></div>`).join(''),footer:`<button class="btn btn-ghost" onclick="closeModal()">إغلاق</button>`}); }
+function viewShipment(id){ const s=DB.shipments.find(x=>x.id===id); if(!s) return; modal({title:'تفاصيل الشحنة',body:[['رقم الشحنة',esc(s.no)||'—'],['المورد',esc(s.supplier)],['المنتج',esc(P(s.p).name)],['الكمية',`<span class="num pos">+${fmt(s.q)} ${esc(P(s.p).unit)}</span>`],['تاريخ الاستلام',fmtDT(s.date)],['المستلم',esc(U(s.createdBy))],['ملاحظات',esc(s.note)||'—']].map(r=>`<div class="detail-row"><span>${r[0]}</span><b>${r[1]}</b></div>`).join(''),footer:`<button class="btn btn-ghost" onclick="closeModal()">إغلاق</button>`}); }
 function viewEmployee(id){ const e=E(id); const h=DB.held.filter(x=>x.emp===id);
   modal({title:'عهد الموظف',body:`<div style="margin-bottom:12px">${empCell(e)}</div>${h.length?h.map(x=>`<div class="detail-row"><span>${esc(P(x.p).name)}</span><b class="num">${fmt(x.q)} ${esc(P(x.p).unit)}</b></div>`).join(''):'<p style="color:var(--muted)">لا توجد عهد حالياً لدى هذا الموظف.</p>'}`,footer:`<button class="btn btn-ghost" onclick="closeModal()">إغلاق</button>`}); }
 
@@ -1017,8 +1173,40 @@ async function enter(user){
     let prof;
     try{ prof = await q(sb.from('profiles').select('id,full_name,role,employee_id,status').eq('id',user.id).maybeSingle()); }
     catch(e){ await sb.auth.signOut(); return showLogin('تعذّر تحميل ملفك الشخصي: '+errMsg(e)); }
-    if(!prof){ await sb.auth.signOut(); return showLogin('لا يوجد ملف شخصي مرتبط بهذا الحساب. تواصل مع مدير النظام.'); }
-    if(prof.status && prof.status!=='active'){ await sb.auth.signOut(); return showLogin('هذا الحساب غير مفعّل. تواصل مع مدير النظام.'); }
+    
+if (!prof) {
+  await sb.auth.signOut();
+  return showLogin('لا يوجد ملف شخصي مرتبط بهذا الحساب. تواصل مع مدير النظام.');
+}
+
+if (prof.status !== 'active') {
+  await sb.auth.signOut();
+  return showLogin('تم تعطيل حسابك، يرجى مراجعة مدير النظام.');
+}
+
+// التحقق من حالة الموظف المرتبط بالحساب، إن وجد
+if (prof.employee_id) {
+  let employee;
+
+  try {
+    employee = await q(
+      sb.from('employees')
+        .select('status')
+        .eq('id', prof.employee_id)
+        .maybeSingle()
+    );
+  } catch (e) {
+    await sb.auth.signOut();
+    return showLogin('تعذّر التحقق من حالة حسابك. حاول مجددًا أو تواصل مع المدير.');
+  }
+
+  if (!employee || employee.status !== 'active') {
+    await sb.auth.signOut();
+    return showLogin('تم تعطيل حسابك، يرجى مراجعة مدير النظام.');
+  }
+}
+
+    watchAccountStatus(user.id);
     S.role = ROLES[prof.role]?prof.role:'employee';
     S.user = {id:prof.employee_id||null, name:prof.full_name||S.email, dept:''};
     $('#pName').textContent=S.user.name; $('#pRole').textContent=ROLES[S.role];
@@ -1057,6 +1245,47 @@ sb.auth.onAuthStateChange((event, session)=>{
   if(event==='SIGNED_OUT' && S.uid) showLogin('انتهت الجلسة، يرجى تسجيل الدخول مجدداً');
 });
 window.addEventListener('unhandledrejection', e=>{ e.preventDefault(); console.warn(e.reason); toast(errMsg(e.reason),'error'); });
+
+let accountStatusChannel = null;
+
+function watchAccountStatus(userId) {
+  // إزالة أي مراقب قديم عند تبديل الحساب
+  if (accountStatusChannel) {
+    sb.removeChannel(accountStatusChannel);
+    accountStatusChannel = null;
+  }
+
+  accountStatusChannel = sb
+    .channel('account-status-' + userId)
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'profiles',
+        filter: 'id=eq.' + userId
+      },
+      async (payload) => {
+        if (payload.new?.status !== 'inactive') return;
+
+        // منع رسالة تسجيل الخروج العامة من استبدال الرسالة المطلوبة
+        S.uid = null;
+
+        const channel = accountStatusChannel;
+        accountStatusChannel = null;
+
+        try {
+          if (channel) await sb.removeChannel(channel);
+          await sb.auth.signOut();
+        } catch (error) {
+          console.warn('Forced logout:', error);
+        } finally {
+          showLogin('تم إخراجك من النظام');
+        }
+      }
+    )
+    .subscribe();
+}
 
 (async function boot(){
   try{
